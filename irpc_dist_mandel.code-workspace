@@ -1,0 +1,17 @@
+{
+  "folders": [
+    {
+      "name": "Mandel Core & Server",
+      "path": "."
+    },
+    {
+      "name": "Mandel Web (WASM)",
+      "path": "cmd/web"
+    }
+  ],
+  "settings": {
+    "gopls": {
+      // General gopls settings can go here
+    }
+  }
+}

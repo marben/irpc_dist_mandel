@@ -9,6 +9,7 @@ import (
 
 	"github.com/marben/irpc"
 	mandel "github.com/marben/irpc_dist_mandel"
+	"github.com/marben/irpc_dist_mandel/render"
 )
 
 func main() {
@@ -19,13 +20,13 @@ func main() {
 
 func run() error {
 	log.Printf("connecting")
-	tcpConn, err := net.Dial("tcp", ":8080")
+	tcpConn, err := net.Dial("tcp", ":8081")
 	if err != nil {
 		return err
 	}
 
 	// create the renderer service, that will be called from server to render tiles
-	rendererService := mandel.NewRendererIrpcService(RendererImpl{})
+	rendererService := mandel.NewRendererIrpcService(render.RendererImpl{})
 	ep := irpc.NewEndpoint(tcpConn, irpc.WithEndpointServices(rendererService))
 
 	client, err := mandel.NewImgProviderIrpcClient(ep)
@@ -47,7 +48,7 @@ func run() error {
 	}
 	defer f.Close()
 
-	if err := png.Encode(f, &img); err != nil {
+	if err := png.Encode(f, img); err != nil {
 		return err
 	}
 

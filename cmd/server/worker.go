@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/draw"
 	"log"
+	"maps"
 	"sync"
 
 	mandel "github.com/marben/irpc_dist_mandel"
@@ -21,12 +22,51 @@ type imgWorkScheduler struct {
 	totalPixels    int
 	finishedPixels int
 
-	unstarted map[image.Rectangle]struct{}
-	inProcess map[image.Rectangle]struct{}
-	m         sync.Mutex
+	unstartedTiles map[image.Rectangle]struct{}
+	inProcessTiles map[image.Rectangle]struct{}
+	finishedTiles  map[image.Rectangle]struct{}
+	m              sync.Mutex
 }
 
-func newWorkScheduler(w, h int, region mandel.Region) *imgWorkScheduler {
+// FinishedTiles implements mandel.TileProvider.
+func (iws *imgWorkScheduler) FinishedTiles() (map[image.Rectangle]struct{}, error) {
+	iws.m.Lock()
+	defer iws.m.Unlock()
+	rtnMap := make(map[image.Rectangle]struct{}, len(iws.finishedTiles))
+	maps.Copy(rtnMap, iws.finishedTiles)
+
+	return rtnMap, nil
+}
+
+// FullImageDimensions implements mandel.TileProvider.
+func (iws *imgWorkScheduler) FullImageDimensions() (width int, height int, err error) {
+	iws.m.Lock()
+	defer iws.m.Unlock()
+
+	return iws.img.Rect.Dx(), iws.img.Rect.Dy(), nil
+}
+
+// GetTileImg implements mandel.TileProvider.
+func (iws *imgWorkScheduler) GetTileImg(tileRect image.Rectangle) (*image.RGBA, error) {
+	iws.m.Lock()
+	defer iws.m.Unlock()
+
+	tileImg := image.NewRGBA(tileRect)
+	for y := 0; y < tileRect.Dy(); y++ {
+		srcY := tileRect.Min.Y + y
+		srcStart := iws.img.PixOffset(tileRect.Min.X, srcY)
+		srcEnd := srcStart + tileRect.Dx()*4
+
+		dstStart := y * tileImg.Stride
+		dstEnd := dstStart + tileRect.Dx()*4
+
+		copy(tileImg.Pix[dstStart:dstEnd], iws.img.Pix[srcStart:srcEnd])
+	}
+
+	return tileImg, nil
+}
+
+func newImgWorkScheduler(w, h int, region mandel.Region) *imgWorkScheduler {
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	allTilesSlice := splitRectNoClip(img.Bounds(), 64, 64)
 	allTiles := make(map[image.Rectangle]struct{}, len(allTilesSlice))
@@ -35,13 +75,14 @@ func newWorkScheduler(w, h int, region mandel.Region) *imgWorkScheduler {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &imgWorkScheduler{
-		img:         img,
-		mRegion:     region,
-		unstarted:   allTiles,
-		inProcess:   make(map[image.Rectangle]struct{}),
-		totalPixels: w * h,
-		ctx:         ctx,
-		ctxCancel:   cancel,
+		img:            img,
+		mRegion:        region,
+		unstartedTiles: allTiles,
+		inProcessTiles: make(map[image.Rectangle]struct{}),
+		finishedTiles:  make(map[image.Rectangle]struct{}, len(allTiles)),
+		totalPixels:    w * h,
+		ctx:            ctx,
+		ctxCancel:      cancel,
 	}
 }
 
@@ -50,20 +91,20 @@ func (iws *imgWorkScheduler) popTile() (tile image.Rectangle, found bool) {
 	defer iws.m.Unlock()
 
 	// Get unstarted tile
-	if len(iws.unstarted) > 0 {
-		for tile = range iws.unstarted {
+	if len(iws.unstartedTiles) > 0 {
+		for tile = range iws.unstartedTiles {
 			break
 		}
-		delete(iws.unstarted, tile)
+		delete(iws.unstartedTiles, tile)
 
 		// Move popped tile to currently processed tiles
-		iws.inProcess[tile] = struct{}{}
+		iws.inProcessTiles[tile] = struct{}{}
 		return tile, true
 	}
 
 	// If there is no unstarted tile, we work again on a started one
-	if len(iws.inProcess) > 0 {
-		for tile = range iws.inProcess {
+	if len(iws.inProcessTiles) > 0 {
+		for tile = range iws.inProcessTiles {
 			break
 		}
 
@@ -74,9 +115,9 @@ func (iws *imgWorkScheduler) popTile() (tile image.Rectangle, found bool) {
 }
 
 // GetImage implements mandel.Server.
-func (iws *imgWorkScheduler) GetImage() (image.RGBA, error) {
+func (iws *imgWorkScheduler) GetImage() (*image.RGBA, error) {
 	<-iws.ctx.Done()
-	return *iws.img, nil
+	return iws.img, nil
 }
 
 func (iws *imgWorkScheduler) finished() float32 {
@@ -85,34 +126,36 @@ func (iws *imgWorkScheduler) finished() float32 {
 	return float32(iws.finishedPixels) / float32(iws.totalPixels)
 }
 
-func (iws *imgWorkScheduler) tileFinished(tileImg image.RGBA) {
+func (iws *imgWorkScheduler) tileFinished(tileImg *image.RGBA) {
 	defer log.Printf("finished: %f", iws.finished())
 
 	rect := tileImg.Bounds()
+
 	iws.m.Lock()
 	defer iws.m.Unlock()
 
 	draw.Draw(
 		iws.img,
 		tileImg.Bounds(),     // destination rectangle (global coords)
-		&tileImg,             // source image
+		tileImg,              // source image
 		tileImg.Bounds().Min, // source start
 		draw.Src,
 	)
 
-	_, found := iws.inProcess[rect]
+	_, found := iws.inProcessTiles[rect]
 	if found {
 		iws.finishedPixels += rect.Dx() * rect.Dy()
 	}
 
-	delete(iws.inProcess, tileImg.Rect)
+	delete(iws.inProcessTiles, tileImg.Rect)
+	iws.finishedTiles[tileImg.Rect] = struct{}{}
 
-	if len(iws.unstarted) == 0 && len(iws.inProcess) == 0 {
+	if len(iws.unstartedTiles) == 0 && len(iws.inProcessTiles) == 0 {
 		iws.ctxCancel()
 	}
 }
 
-func (iws *imgWorkScheduler) incActiveWorker() {
+func (iws *imgWorkScheduler) incActiveWorkers() {
 	iws.m.Lock()
 	iws.workers++
 	w := iws.workers
@@ -132,8 +175,8 @@ func (iws *imgWorkScheduler) decActiveWorkers() {
 
 // renders unfinished tiles on provided Renderer
 // can be called from multiple goroutines in parallel
-func (iws *imgWorkScheduler) render(renderer mandel.Renderer) error {
-	iws.incActiveWorker()
+func (iws *imgWorkScheduler) addRenderer(renderer mandel.Renderer) error {
+	iws.incActiveWorkers()
 	defer iws.decActiveWorkers()
 
 	for {

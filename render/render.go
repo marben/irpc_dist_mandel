@@ -1,4 +1,4 @@
-package main
+package render
 
 import (
 	"image"
@@ -13,9 +13,11 @@ import (
 
 const maxIter = 1000
 
-type RendererImpl struct{}
+type RendererImpl struct {
+	// SleepTime time.Duration // artificially slow down rendering by sleeping after each tile render
+}
 
-func (imp RendererImpl) RenderTile(r mandel.Region, tile image.Rectangle, imgW, imgH int) (image.RGBA, error) {
+func (imp RendererImpl) RenderTile(r mandel.Region, tile image.Rectangle, imgW, imgH int) (*image.RGBA, error) {
 	log.Printf("rendering tile: %s", tile)
 
 	// Image now has global coordinates (tile.Min .. tile.Max)
@@ -44,9 +46,9 @@ func (imp RendererImpl) RenderTile(r mandel.Region, tile image.Rectangle, imgW, 
 		}
 	}
 
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(mandel.RenderTileSleepTime)
 
-	return *img, nil
+	return img, nil
 }
 
 var _ mandel.Renderer = RendererImpl{}

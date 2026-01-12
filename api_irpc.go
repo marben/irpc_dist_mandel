@@ -10,10 +10,10 @@ import (
 )
 
 var _ImgProviderIrpcId = []byte{
-	0x42, 0xe5, 0xc2, 0xd8, 0xb5, 0xb8, 0x73, 0x75,
-	0x3e, 0x73, 0xad, 0xf0, 0xe2, 0x70, 0xe7, 0x96,
-	0xd9, 0xe7, 0x16, 0x48, 0xb2, 0x10, 0xe4, 0x63,
-	0x3f, 0xe7, 0x7f, 0xb3, 0x23, 0x1e, 0x92, 0xda,
+	0x34, 0xe5, 0x95, 0x48, 0xb3, 0xaf, 0x66, 0x8e,
+	0x3e, 0x36, 0x13, 0x37, 0x37, 0x30, 0x48, 0x8b,
+	0xc0, 0x38, 0xc1, 0x0c, 0xeb, 0x42, 0xe0, 0x37,
+	0x29, 0x09, 0x06, 0x3b, 0x5e, 0x6a, 0x36, 0xa4,
 }
 
 type ImgProviderIrpcService struct {
@@ -45,6 +45,8 @@ func (s *ImgProviderIrpcService) GetFuncCall(funcId irpcgen.FuncId) (irpcgen.Arg
 }
 
 // ImgProviderIrpcClient implements ImgProvider
+//
+// used by cli client to get full image once it's rendered
 type ImgProviderIrpcClient struct {
 	endpoint irpcgen.Endpoint
 }
@@ -55,7 +57,7 @@ func NewImgProviderIrpcClient(endpoint irpcgen.Endpoint) (*ImgProviderIrpcClient
 	}
 	return &ImgProviderIrpcClient{endpoint: endpoint}, nil
 }
-func (_c *ImgProviderIrpcClient) GetImage() (image.RGBA, error) {
+func (_c *ImgProviderIrpcClient) GetImage() (*image.RGBA, error) {
 	var resp _irpc_ImgProvider_GetImageResp
 	if err := _c.endpoint.CallRemoteFunc(context.Background(), _ImgProviderIrpcId, 0, irpcgen.EmptySerializable{}, &resp); err != nil {
 		var zero _irpc_ImgProvider_GetImageResp
@@ -65,48 +67,50 @@ func (_c *ImgProviderIrpcClient) GetImage() (image.RGBA, error) {
 }
 
 type _irpc_ImgProvider_GetImageResp struct {
-	p0 image.RGBA
+	p0 *image.RGBA
 	p1 error
 }
 
 func (s _irpc_ImgProvider_GetImageResp) Serialize(e *irpcgen.Encoder) error {
-	if err := func(enc *irpcgen.Encoder, s image.RGBA) error {
-		if err := irpcgen.EncByteSlice(enc, s.Pix); err != nil {
-			return fmt.Errorf("serialize s.Pix of type []uint8: %w", err)
-		}
-		if err := irpcgen.EncInt(enc, s.Stride); err != nil {
-			return fmt.Errorf("serialize s.Stride of type int: %w", err)
-		}
-		if err := func(enc *irpcgen.Encoder, s image.Rectangle) error {
-			if err := func(enc *irpcgen.Encoder, s image.Point) error {
-				if err := irpcgen.EncInt(enc, s.X); err != nil {
-					return fmt.Errorf("serialize s.X of type int: %w", err)
-				}
-				if err := irpcgen.EncInt(enc, s.Y); err != nil {
-					return fmt.Errorf("serialize s.Y of type int: %w", err)
-				}
-				return nil
-			}(enc, s.Min); err != nil {
-				return fmt.Errorf("serialize s.Min of type image.Point: %w", err)
+	if err := func(enc *irpcgen.Encoder, pt *image.RGBA) error {
+		return irpcgen.EncPointer(enc, pt, "image.RGBA", func(enc *irpcgen.Encoder, s image.RGBA) error {
+			if err := irpcgen.EncByteSlice(enc, s.Pix); err != nil {
+				return fmt.Errorf("serialize s.Pix of type []uint8: %w", err)
 			}
-			if err := func(enc *irpcgen.Encoder, s image.Point) error {
-				if err := irpcgen.EncInt(enc, s.X); err != nil {
-					return fmt.Errorf("serialize s.X of type int: %w", err)
+			if err := irpcgen.EncInt(enc, s.Stride); err != nil {
+				return fmt.Errorf("serialize s.Stride of type int: %w", err)
+			}
+			if err := func(enc *irpcgen.Encoder, s image.Rectangle) error {
+				if err := func(enc *irpcgen.Encoder, s image.Point) error {
+					if err := irpcgen.EncInt(enc, s.X); err != nil {
+						return fmt.Errorf("serialize s.X of type int: %w", err)
+					}
+					if err := irpcgen.EncInt(enc, s.Y); err != nil {
+						return fmt.Errorf("serialize s.Y of type int: %w", err)
+					}
+					return nil
+				}(enc, s.Min); err != nil {
+					return fmt.Errorf("serialize s.Min of type image.Point: %w", err)
 				}
-				if err := irpcgen.EncInt(enc, s.Y); err != nil {
-					return fmt.Errorf("serialize s.Y of type int: %w", err)
+				if err := func(enc *irpcgen.Encoder, s image.Point) error {
+					if err := irpcgen.EncInt(enc, s.X); err != nil {
+						return fmt.Errorf("serialize s.X of type int: %w", err)
+					}
+					if err := irpcgen.EncInt(enc, s.Y); err != nil {
+						return fmt.Errorf("serialize s.Y of type int: %w", err)
+					}
+					return nil
+				}(enc, s.Max); err != nil {
+					return fmt.Errorf("serialize s.Max of type image.Point: %w", err)
 				}
 				return nil
-			}(enc, s.Max); err != nil {
-				return fmt.Errorf("serialize s.Max of type image.Point: %w", err)
+			}(enc, s.Rect); err != nil {
+				return fmt.Errorf("serialize s.Rect of type image.Rectangle: %w", err)
 			}
 			return nil
-		}(enc, s.Rect); err != nil {
-			return fmt.Errorf("serialize s.Rect of type image.Rectangle: %w", err)
-		}
-		return nil
+		})
 	}(e, s.p0); err != nil {
-		return fmt.Errorf("serialize type image.RGBA: %w", err)
+		return fmt.Errorf("serialize type *image.RGBA: %w", err)
 	}
 	if err := func(enc *irpcgen.Encoder, v error) error {
 		isNil := v == nil
@@ -127,48 +131,50 @@ func (s _irpc_ImgProvider_GetImageResp) Serialize(e *irpcgen.Encoder) error {
 	return nil
 }
 func (s *_irpc_ImgProvider_GetImageResp) Deserialize(d *irpcgen.Decoder) error {
-	if err := func(dec *irpcgen.Decoder, s *image.RGBA) error {
-		if err := irpcgen.DecByteSlice(dec, &s.Pix); err != nil {
-			return fmt.Errorf("deserialize s.Pix of type []uint8: %w", err)
-		}
-		if err := irpcgen.DecInt(dec, &s.Stride); err != nil {
-			return fmt.Errorf("deserialize s.Stride of type int: %w", err)
-		}
-		if err := func(dec *irpcgen.Decoder, s *image.Rectangle) error {
-			if err := func(dec *irpcgen.Decoder, s *image.Point) error {
-				if err := irpcgen.DecInt(dec, &s.X); err != nil {
-					return fmt.Errorf("deserialize s.X of type int: %w", err)
-				}
-				if err := irpcgen.DecInt(dec, &s.Y); err != nil {
-					return fmt.Errorf("deserialize s.Y of type int: %w", err)
-				}
-				return nil
-			}(dec, &s.Min); err != nil {
-				return fmt.Errorf("deserialize s.Min of type image.Point: %w", err)
+	if err := func(dec *irpcgen.Decoder, pt **image.RGBA) error {
+		return irpcgen.DecPointer(dec, pt, "image.RGBA", func(dec *irpcgen.Decoder, s *image.RGBA) error {
+			if err := irpcgen.DecByteSlice(dec, &s.Pix); err != nil {
+				return fmt.Errorf("deserialize s.Pix of type []uint8: %w", err)
 			}
-			if err := func(dec *irpcgen.Decoder, s *image.Point) error {
-				if err := irpcgen.DecInt(dec, &s.X); err != nil {
-					return fmt.Errorf("deserialize s.X of type int: %w", err)
+			if err := irpcgen.DecInt(dec, &s.Stride); err != nil {
+				return fmt.Errorf("deserialize s.Stride of type int: %w", err)
+			}
+			if err := func(dec *irpcgen.Decoder, s *image.Rectangle) error {
+				if err := func(dec *irpcgen.Decoder, s *image.Point) error {
+					if err := irpcgen.DecInt(dec, &s.X); err != nil {
+						return fmt.Errorf("deserialize s.X of type int: %w", err)
+					}
+					if err := irpcgen.DecInt(dec, &s.Y); err != nil {
+						return fmt.Errorf("deserialize s.Y of type int: %w", err)
+					}
+					return nil
+				}(dec, &s.Min); err != nil {
+					return fmt.Errorf("deserialize s.Min of type image.Point: %w", err)
 				}
-				if err := irpcgen.DecInt(dec, &s.Y); err != nil {
-					return fmt.Errorf("deserialize s.Y of type int: %w", err)
+				if err := func(dec *irpcgen.Decoder, s *image.Point) error {
+					if err := irpcgen.DecInt(dec, &s.X); err != nil {
+						return fmt.Errorf("deserialize s.X of type int: %w", err)
+					}
+					if err := irpcgen.DecInt(dec, &s.Y); err != nil {
+						return fmt.Errorf("deserialize s.Y of type int: %w", err)
+					}
+					return nil
+				}(dec, &s.Max); err != nil {
+					return fmt.Errorf("deserialize s.Max of type image.Point: %w", err)
 				}
 				return nil
-			}(dec, &s.Max); err != nil {
-				return fmt.Errorf("deserialize s.Max of type image.Point: %w", err)
+			}(dec, &s.Rect); err != nil {
+				return fmt.Errorf("deserialize s.Rect of type image.Rectangle: %w", err)
 			}
 			return nil
-		}(dec, &s.Rect); err != nil {
-			return fmt.Errorf("deserialize s.Rect of type image.Rectangle: %w", err)
-		}
-		return nil
+		})
 	}(d, &s.p0); err != nil {
-		return fmt.Errorf("deserialize type image.RGBA: %w", err)
+		return fmt.Errorf("deserialize type *image.RGBA: %w", err)
 	}
 	if err := func(dec *irpcgen.Decoder, s *error) error {
 		var isNil bool
 		if err := irpcgen.DecIsNil(dec, &isNil); err != nil {
-			return fmt.Errorf("deserialize isNil: %w:", err)
+			return fmt.Errorf("deserialize isNil: %w", err)
 		}
 		if isNil {
 			return nil
@@ -193,11 +199,473 @@ func (i _error_ImgProvider_impl) Error() string {
 	return i._Error_0_
 }
 
+var _TileProviderIrpcId = []byte{
+	0x96, 0x0b, 0xba, 0x5f, 0x54, 0xc0, 0x01, 0xb9,
+	0xaf, 0x41, 0x09, 0xe4, 0x0a, 0x8c, 0xc0, 0x08,
+	0xb0, 0xdb, 0x06, 0xc0, 0x6c, 0x33, 0x82, 0x3a,
+	0x3c, 0x7c, 0xb8, 0xb0, 0x0f, 0x72, 0xf9, 0xba,
+}
+
+type TileProviderIrpcService struct {
+	impl TileProvider
+}
+
+func NewTileProviderIrpcService(impl TileProvider) *TileProviderIrpcService {
+	return &TileProviderIrpcService{
+		impl: impl,
+	}
+}
+func (s *TileProviderIrpcService) Id() []byte {
+	return _TileProviderIrpcId
+}
+func (s *TileProviderIrpcService) GetFuncCall(funcId irpcgen.FuncId) (irpcgen.ArgDeserializer, error) {
+	switch funcId {
+	case 0: // FinishedTiles
+		return func(d *irpcgen.Decoder) (irpcgen.FuncExecutor, error) {
+			return func(ctx context.Context) irpcgen.Serializable {
+				// EXECUTE
+				var resp _irpc_TileProvider_FinishedTilesResp
+				resp.p0, resp.p1 = s.impl.FinishedTiles()
+				return resp
+			}, nil
+		}, nil
+	case 1: // GetTileImg
+		return func(d *irpcgen.Decoder) (irpcgen.FuncExecutor, error) {
+			// DESERIALIZE
+			var args _irpc_TileProvider_GetTileImgReq
+			if err := args.Deserialize(d); err != nil {
+				return nil, err
+			}
+			return func(ctx context.Context) irpcgen.Serializable {
+				// EXECUTE
+				var resp _irpc_TileProvider_GetTileImgResp
+				resp.p0, resp.p1 = s.impl.GetTileImg(args.rect)
+				return resp
+			}, nil
+		}, nil
+	case 2: // FullImageDimensions
+		return func(d *irpcgen.Decoder) (irpcgen.FuncExecutor, error) {
+			return func(ctx context.Context) irpcgen.Serializable {
+				// EXECUTE
+				var resp _irpc_TileProvider_FullImageDimensionsResp
+				resp.x, resp.y, resp.err = s.impl.FullImageDimensions()
+				return resp
+			}, nil
+		}, nil
+	default:
+		return nil, fmt.Errorf("function '%d' doesn't exist on service '%s'", funcId, s.Id())
+	}
+}
+
+// TileProviderIrpcClient implements TileProvider
+//
+// used by web client to show rendering progress tile by tile
+type TileProviderIrpcClient struct {
+	endpoint irpcgen.Endpoint
+}
+
+func NewTileProviderIrpcClient(endpoint irpcgen.Endpoint) (*TileProviderIrpcClient, error) {
+	if err := endpoint.RegisterClient(_TileProviderIrpcId); err != nil {
+		return nil, fmt.Errorf("register failed: %w", err)
+	}
+	return &TileProviderIrpcClient{endpoint: endpoint}, nil
+}
+func (_c *TileProviderIrpcClient) FinishedTiles() (map[image.Rectangle]struct{}, error) {
+	var resp _irpc_TileProvider_FinishedTilesResp
+	if err := _c.endpoint.CallRemoteFunc(context.Background(), _TileProviderIrpcId, 0, irpcgen.EmptySerializable{}, &resp); err != nil {
+		var zero _irpc_TileProvider_FinishedTilesResp
+		return zero.p0, err
+	}
+	return resp.p0, resp.p1
+}
+func (_c *TileProviderIrpcClient) GetTileImg(rect image.Rectangle) (*image.RGBA, error) {
+	var req = _irpc_TileProvider_GetTileImgReq{
+		rect: rect,
+	}
+	var resp _irpc_TileProvider_GetTileImgResp
+	if err := _c.endpoint.CallRemoteFunc(context.Background(), _TileProviderIrpcId, 1, req, &resp); err != nil {
+		var zero _irpc_TileProvider_GetTileImgResp
+		return zero.p0, err
+	}
+	return resp.p0, resp.p1
+}
+func (_c *TileProviderIrpcClient) FullImageDimensions() (x int, y int, err error) {
+	var resp _irpc_TileProvider_FullImageDimensionsResp
+	if err := _c.endpoint.CallRemoteFunc(context.Background(), _TileProviderIrpcId, 2, irpcgen.EmptySerializable{}, &resp); err != nil {
+		var zero _irpc_TileProvider_FullImageDimensionsResp
+		return zero.x, zero.y, err
+	}
+	return resp.x, resp.y, resp.err
+}
+
+type _irpc_TileProvider_FinishedTilesResp struct {
+	p0 map[image.Rectangle]struct{}
+	p1 error
+}
+
+func (s _irpc_TileProvider_FinishedTilesResp) Serialize(e *irpcgen.Encoder) error {
+	if err := func(enc *irpcgen.Encoder, m map[image.Rectangle]struct{}) error {
+		return irpcgen.EncMap(enc, m, "image.Rectangle", func(enc *irpcgen.Encoder, s image.Rectangle) error {
+			if err := func(enc *irpcgen.Encoder, s image.Point) error {
+				if err := irpcgen.EncInt(enc, s.X); err != nil {
+					return fmt.Errorf("serialize s.X of type int: %w", err)
+				}
+				if err := irpcgen.EncInt(enc, s.Y); err != nil {
+					return fmt.Errorf("serialize s.Y of type int: %w", err)
+				}
+				return nil
+			}(enc, s.Min); err != nil {
+				return fmt.Errorf("serialize s.Min of type image.Point: %w", err)
+			}
+			if err := func(enc *irpcgen.Encoder, s image.Point) error {
+				if err := irpcgen.EncInt(enc, s.X); err != nil {
+					return fmt.Errorf("serialize s.X of type int: %w", err)
+				}
+				if err := irpcgen.EncInt(enc, s.Y); err != nil {
+					return fmt.Errorf("serialize s.Y of type int: %w", err)
+				}
+				return nil
+			}(enc, s.Max); err != nil {
+				return fmt.Errorf("serialize s.Max of type image.Point: %w", err)
+			}
+			return nil
+		}, "struct{}", func(enc *irpcgen.Encoder, s struct{}) error {
+			return nil
+		})
+	}(e, s.p0); err != nil {
+		return fmt.Errorf("serialize type map[image.Rectangle]struct{}: %w", err)
+	}
+	if err := func(enc *irpcgen.Encoder, v error) error {
+		isNil := v == nil
+		if err := irpcgen.EncIsNil(enc, isNil); err != nil {
+			return fmt.Errorf("serialize isNil == %t: %w", isNil, err)
+		}
+		if isNil {
+			return nil
+		}
+		_Error_0_ := v.Error()
+		if err := irpcgen.EncString(enc, _Error_0_); err != nil {
+			return fmt.Errorf("serialize \"v.Error()\" of type string: %w", err)
+		}
+		return nil
+	}(e, s.p1); err != nil {
+		return fmt.Errorf("serialize type error: %w", err)
+	}
+	return nil
+}
+func (s *_irpc_TileProvider_FinishedTilesResp) Deserialize(d *irpcgen.Decoder) error {
+	if err := func(dec *irpcgen.Decoder, m *map[image.Rectangle]struct{}) error {
+		return irpcgen.DecMap(dec, m, "image.Rectangle", func(dec *irpcgen.Decoder, s *image.Rectangle) error {
+			if err := func(dec *irpcgen.Decoder, s *image.Point) error {
+				if err := irpcgen.DecInt(dec, &s.X); err != nil {
+					return fmt.Errorf("deserialize s.X of type int: %w", err)
+				}
+				if err := irpcgen.DecInt(dec, &s.Y); err != nil {
+					return fmt.Errorf("deserialize s.Y of type int: %w", err)
+				}
+				return nil
+			}(dec, &s.Min); err != nil {
+				return fmt.Errorf("deserialize s.Min of type image.Point: %w", err)
+			}
+			if err := func(dec *irpcgen.Decoder, s *image.Point) error {
+				if err := irpcgen.DecInt(dec, &s.X); err != nil {
+					return fmt.Errorf("deserialize s.X of type int: %w", err)
+				}
+				if err := irpcgen.DecInt(dec, &s.Y); err != nil {
+					return fmt.Errorf("deserialize s.Y of type int: %w", err)
+				}
+				return nil
+			}(dec, &s.Max); err != nil {
+				return fmt.Errorf("deserialize s.Max of type image.Point: %w", err)
+			}
+			return nil
+		}, "struct{}", func(dec *irpcgen.Decoder, s *struct{}) error {
+			return nil
+		})
+	}(d, &s.p0); err != nil {
+		return fmt.Errorf("deserialize type map[image.Rectangle]struct{}: %w", err)
+	}
+	if err := func(dec *irpcgen.Decoder, s *error) error {
+		var isNil bool
+		if err := irpcgen.DecIsNil(dec, &isNil); err != nil {
+			return fmt.Errorf("deserialize isNil: %w", err)
+		}
+		if isNil {
+			return nil
+		}
+		var impl _error_TileProvider_impl
+		if err := irpcgen.DecString(dec, &impl._Error_0_); err != nil {
+			return fmt.Errorf("deserialize \"_Error_0_\" string: %w", err)
+		}
+		*s = impl
+		return nil
+	}(d, &s.p1); err != nil {
+		return fmt.Errorf("deserialize type error: %w", err)
+	}
+	return nil
+}
+
+type _error_TileProvider_impl struct {
+	_Error_0_ string
+}
+
+func (i _error_TileProvider_impl) Error() string {
+	return i._Error_0_
+}
+
+type _irpc_TileProvider_GetTileImgReq struct {
+	rect image.Rectangle
+}
+
+func (s _irpc_TileProvider_GetTileImgReq) Serialize(e *irpcgen.Encoder) error {
+	if err := func(enc *irpcgen.Encoder, s image.Rectangle) error {
+		if err := func(enc *irpcgen.Encoder, s image.Point) error {
+			if err := irpcgen.EncInt(enc, s.X); err != nil {
+				return fmt.Errorf("serialize s.X of type int: %w", err)
+			}
+			if err := irpcgen.EncInt(enc, s.Y); err != nil {
+				return fmt.Errorf("serialize s.Y of type int: %w", err)
+			}
+			return nil
+		}(enc, s.Min); err != nil {
+			return fmt.Errorf("serialize s.Min of type image.Point: %w", err)
+		}
+		if err := func(enc *irpcgen.Encoder, s image.Point) error {
+			if err := irpcgen.EncInt(enc, s.X); err != nil {
+				return fmt.Errorf("serialize s.X of type int: %w", err)
+			}
+			if err := irpcgen.EncInt(enc, s.Y); err != nil {
+				return fmt.Errorf("serialize s.Y of type int: %w", err)
+			}
+			return nil
+		}(enc, s.Max); err != nil {
+			return fmt.Errorf("serialize s.Max of type image.Point: %w", err)
+		}
+		return nil
+	}(e, s.rect); err != nil {
+		return fmt.Errorf("serialize \"rect\" of type image.Rectangle: %w", err)
+	}
+	return nil
+}
+func (s *_irpc_TileProvider_GetTileImgReq) Deserialize(d *irpcgen.Decoder) error {
+	if err := func(dec *irpcgen.Decoder, s *image.Rectangle) error {
+		if err := func(dec *irpcgen.Decoder, s *image.Point) error {
+			if err := irpcgen.DecInt(dec, &s.X); err != nil {
+				return fmt.Errorf("deserialize s.X of type int: %w", err)
+			}
+			if err := irpcgen.DecInt(dec, &s.Y); err != nil {
+				return fmt.Errorf("deserialize s.Y of type int: %w", err)
+			}
+			return nil
+		}(dec, &s.Min); err != nil {
+			return fmt.Errorf("deserialize s.Min of type image.Point: %w", err)
+		}
+		if err := func(dec *irpcgen.Decoder, s *image.Point) error {
+			if err := irpcgen.DecInt(dec, &s.X); err != nil {
+				return fmt.Errorf("deserialize s.X of type int: %w", err)
+			}
+			if err := irpcgen.DecInt(dec, &s.Y); err != nil {
+				return fmt.Errorf("deserialize s.Y of type int: %w", err)
+			}
+			return nil
+		}(dec, &s.Max); err != nil {
+			return fmt.Errorf("deserialize s.Max of type image.Point: %w", err)
+		}
+		return nil
+	}(d, &s.rect); err != nil {
+		return fmt.Errorf("deserialize rect of type image.Rectangle: %w", err)
+	}
+	return nil
+}
+
+type _irpc_TileProvider_GetTileImgResp struct {
+	p0 *image.RGBA
+	p1 error
+}
+
+func (s _irpc_TileProvider_GetTileImgResp) Serialize(e *irpcgen.Encoder) error {
+	if err := func(enc *irpcgen.Encoder, pt *image.RGBA) error {
+		return irpcgen.EncPointer(enc, pt, "image.RGBA", func(enc *irpcgen.Encoder, s image.RGBA) error {
+			if err := irpcgen.EncByteSlice(enc, s.Pix); err != nil {
+				return fmt.Errorf("serialize s.Pix of type []uint8: %w", err)
+			}
+			if err := irpcgen.EncInt(enc, s.Stride); err != nil {
+				return fmt.Errorf("serialize s.Stride of type int: %w", err)
+			}
+			if err := func(enc *irpcgen.Encoder, s image.Rectangle) error {
+				if err := func(enc *irpcgen.Encoder, s image.Point) error {
+					if err := irpcgen.EncInt(enc, s.X); err != nil {
+						return fmt.Errorf("serialize s.X of type int: %w", err)
+					}
+					if err := irpcgen.EncInt(enc, s.Y); err != nil {
+						return fmt.Errorf("serialize s.Y of type int: %w", err)
+					}
+					return nil
+				}(enc, s.Min); err != nil {
+					return fmt.Errorf("serialize s.Min of type image.Point: %w", err)
+				}
+				if err := func(enc *irpcgen.Encoder, s image.Point) error {
+					if err := irpcgen.EncInt(enc, s.X); err != nil {
+						return fmt.Errorf("serialize s.X of type int: %w", err)
+					}
+					if err := irpcgen.EncInt(enc, s.Y); err != nil {
+						return fmt.Errorf("serialize s.Y of type int: %w", err)
+					}
+					return nil
+				}(enc, s.Max); err != nil {
+					return fmt.Errorf("serialize s.Max of type image.Point: %w", err)
+				}
+				return nil
+			}(enc, s.Rect); err != nil {
+				return fmt.Errorf("serialize s.Rect of type image.Rectangle: %w", err)
+			}
+			return nil
+		})
+	}(e, s.p0); err != nil {
+		return fmt.Errorf("serialize type *image.RGBA: %w", err)
+	}
+	if err := func(enc *irpcgen.Encoder, v error) error {
+		isNil := v == nil
+		if err := irpcgen.EncIsNil(enc, isNil); err != nil {
+			return fmt.Errorf("serialize isNil == %t: %w", isNil, err)
+		}
+		if isNil {
+			return nil
+		}
+		_Error_0_ := v.Error()
+		if err := irpcgen.EncString(enc, _Error_0_); err != nil {
+			return fmt.Errorf("serialize \"v.Error()\" of type string: %w", err)
+		}
+		return nil
+	}(e, s.p1); err != nil {
+		return fmt.Errorf("serialize type error: %w", err)
+	}
+	return nil
+}
+func (s *_irpc_TileProvider_GetTileImgResp) Deserialize(d *irpcgen.Decoder) error {
+	if err := func(dec *irpcgen.Decoder, pt **image.RGBA) error {
+		return irpcgen.DecPointer(dec, pt, "image.RGBA", func(dec *irpcgen.Decoder, s *image.RGBA) error {
+			if err := irpcgen.DecByteSlice(dec, &s.Pix); err != nil {
+				return fmt.Errorf("deserialize s.Pix of type []uint8: %w", err)
+			}
+			if err := irpcgen.DecInt(dec, &s.Stride); err != nil {
+				return fmt.Errorf("deserialize s.Stride of type int: %w", err)
+			}
+			if err := func(dec *irpcgen.Decoder, s *image.Rectangle) error {
+				if err := func(dec *irpcgen.Decoder, s *image.Point) error {
+					if err := irpcgen.DecInt(dec, &s.X); err != nil {
+						return fmt.Errorf("deserialize s.X of type int: %w", err)
+					}
+					if err := irpcgen.DecInt(dec, &s.Y); err != nil {
+						return fmt.Errorf("deserialize s.Y of type int: %w", err)
+					}
+					return nil
+				}(dec, &s.Min); err != nil {
+					return fmt.Errorf("deserialize s.Min of type image.Point: %w", err)
+				}
+				if err := func(dec *irpcgen.Decoder, s *image.Point) error {
+					if err := irpcgen.DecInt(dec, &s.X); err != nil {
+						return fmt.Errorf("deserialize s.X of type int: %w", err)
+					}
+					if err := irpcgen.DecInt(dec, &s.Y); err != nil {
+						return fmt.Errorf("deserialize s.Y of type int: %w", err)
+					}
+					return nil
+				}(dec, &s.Max); err != nil {
+					return fmt.Errorf("deserialize s.Max of type image.Point: %w", err)
+				}
+				return nil
+			}(dec, &s.Rect); err != nil {
+				return fmt.Errorf("deserialize s.Rect of type image.Rectangle: %w", err)
+			}
+			return nil
+		})
+	}(d, &s.p0); err != nil {
+		return fmt.Errorf("deserialize type *image.RGBA: %w", err)
+	}
+	if err := func(dec *irpcgen.Decoder, s *error) error {
+		var isNil bool
+		if err := irpcgen.DecIsNil(dec, &isNil); err != nil {
+			return fmt.Errorf("deserialize isNil: %w", err)
+		}
+		if isNil {
+			return nil
+		}
+		var impl _error_TileProvider_impl
+		if err := irpcgen.DecString(dec, &impl._Error_0_); err != nil {
+			return fmt.Errorf("deserialize \"_Error_0_\" string: %w", err)
+		}
+		*s = impl
+		return nil
+	}(d, &s.p1); err != nil {
+		return fmt.Errorf("deserialize type error: %w", err)
+	}
+	return nil
+}
+
+type _irpc_TileProvider_FullImageDimensionsResp struct {
+	x   int
+	y   int
+	err error
+}
+
+func (s _irpc_TileProvider_FullImageDimensionsResp) Serialize(e *irpcgen.Encoder) error {
+	if err := irpcgen.EncInt(e, s.x); err != nil {
+		return fmt.Errorf("serialize \"x\" of type int: %w", err)
+	}
+	if err := irpcgen.EncInt(e, s.y); err != nil {
+		return fmt.Errorf("serialize \"y\" of type int: %w", err)
+	}
+	if err := func(enc *irpcgen.Encoder, v error) error {
+		isNil := v == nil
+		if err := irpcgen.EncIsNil(enc, isNil); err != nil {
+			return fmt.Errorf("serialize isNil == %t: %w", isNil, err)
+		}
+		if isNil {
+			return nil
+		}
+		_Error_0_ := v.Error()
+		if err := irpcgen.EncString(enc, _Error_0_); err != nil {
+			return fmt.Errorf("serialize \"v.Error()\" of type string: %w", err)
+		}
+		return nil
+	}(e, s.err); err != nil {
+		return fmt.Errorf("serialize \"err\" of type error: %w", err)
+	}
+	return nil
+}
+func (s *_irpc_TileProvider_FullImageDimensionsResp) Deserialize(d *irpcgen.Decoder) error {
+	if err := irpcgen.DecInt(d, &s.x); err != nil {
+		return fmt.Errorf("deserialize x of type int: %w", err)
+	}
+	if err := irpcgen.DecInt(d, &s.y); err != nil {
+		return fmt.Errorf("deserialize y of type int: %w", err)
+	}
+	if err := func(dec *irpcgen.Decoder, s *error) error {
+		var isNil bool
+		if err := irpcgen.DecIsNil(dec, &isNil); err != nil {
+			return fmt.Errorf("deserialize isNil: %w", err)
+		}
+		if isNil {
+			return nil
+		}
+		var impl _error_TileProvider_impl
+		if err := irpcgen.DecString(dec, &impl._Error_0_); err != nil {
+			return fmt.Errorf("deserialize \"_Error_0_\" string: %w", err)
+		}
+		*s = impl
+		return nil
+	}(d, &s.err); err != nil {
+		return fmt.Errorf("deserialize err of type error: %w", err)
+	}
+	return nil
+}
+
 var _RendererIrpcId = []byte{
-	0xe3, 0x30, 0x9a, 0x45, 0xc4, 0x28, 0x19, 0x6d,
-	0x0c, 0x07, 0xa9, 0x7f, 0xc4, 0x7e, 0x96, 0x50,
-	0xc1, 0xfb, 0x38, 0x19, 0x1a, 0xe3, 0x1a, 0x9f,
-	0xad, 0x06, 0x3f, 0xb1, 0x8b, 0x6b, 0x21, 0xc6,
+	0xf9, 0x4a, 0x78, 0xc8, 0x69, 0x60, 0xbb, 0xb0,
+	0xa5, 0xa1, 0x7f, 0xdf, 0xaa, 0x4d, 0x72, 0x97,
+	0x70, 0xa8, 0x1f, 0xb5, 0xa9, 0x54, 0xde, 0x9c,
+	0xee, 0x70, 0x27, 0xfd, 0x82, 0x24, 0xeb, 0xf3,
 }
 
 type RendererIrpcService struct {
@@ -244,7 +712,7 @@ func NewRendererIrpcClient(endpoint irpcgen.Endpoint) (*RendererIrpcClient, erro
 	}
 	return &RendererIrpcClient{endpoint: endpoint}, nil
 }
-func (_c *RendererIrpcClient) RenderTile(r Region, tile image.Rectangle, imgW int, imgH int) (image.RGBA, error) {
+func (_c *RendererIrpcClient) RenderTile(r Region, tile image.Rectangle, imgW int, imgH int) (*image.RGBA, error) {
 	var req = _irpc_Renderer_RenderTileReq{
 		r:    r,
 		tile: tile,
@@ -374,48 +842,50 @@ func (s *_irpc_Renderer_RenderTileReq) Deserialize(d *irpcgen.Decoder) error {
 }
 
 type _irpc_Renderer_RenderTileResp struct {
-	p0 image.RGBA
+	p0 *image.RGBA
 	p1 error
 }
 
 func (s _irpc_Renderer_RenderTileResp) Serialize(e *irpcgen.Encoder) error {
-	if err := func(enc *irpcgen.Encoder, s image.RGBA) error {
-		if err := irpcgen.EncByteSlice(enc, s.Pix); err != nil {
-			return fmt.Errorf("serialize s.Pix of type []uint8: %w", err)
-		}
-		if err := irpcgen.EncInt(enc, s.Stride); err != nil {
-			return fmt.Errorf("serialize s.Stride of type int: %w", err)
-		}
-		if err := func(enc *irpcgen.Encoder, s image.Rectangle) error {
-			if err := func(enc *irpcgen.Encoder, s image.Point) error {
-				if err := irpcgen.EncInt(enc, s.X); err != nil {
-					return fmt.Errorf("serialize s.X of type int: %w", err)
-				}
-				if err := irpcgen.EncInt(enc, s.Y); err != nil {
-					return fmt.Errorf("serialize s.Y of type int: %w", err)
-				}
-				return nil
-			}(enc, s.Min); err != nil {
-				return fmt.Errorf("serialize s.Min of type image.Point: %w", err)
+	if err := func(enc *irpcgen.Encoder, pt *image.RGBA) error {
+		return irpcgen.EncPointer(enc, pt, "image.RGBA", func(enc *irpcgen.Encoder, s image.RGBA) error {
+			if err := irpcgen.EncByteSlice(enc, s.Pix); err != nil {
+				return fmt.Errorf("serialize s.Pix of type []uint8: %w", err)
 			}
-			if err := func(enc *irpcgen.Encoder, s image.Point) error {
-				if err := irpcgen.EncInt(enc, s.X); err != nil {
-					return fmt.Errorf("serialize s.X of type int: %w", err)
+			if err := irpcgen.EncInt(enc, s.Stride); err != nil {
+				return fmt.Errorf("serialize s.Stride of type int: %w", err)
+			}
+			if err := func(enc *irpcgen.Encoder, s image.Rectangle) error {
+				if err := func(enc *irpcgen.Encoder, s image.Point) error {
+					if err := irpcgen.EncInt(enc, s.X); err != nil {
+						return fmt.Errorf("serialize s.X of type int: %w", err)
+					}
+					if err := irpcgen.EncInt(enc, s.Y); err != nil {
+						return fmt.Errorf("serialize s.Y of type int: %w", err)
+					}
+					return nil
+				}(enc, s.Min); err != nil {
+					return fmt.Errorf("serialize s.Min of type image.Point: %w", err)
 				}
-				if err := irpcgen.EncInt(enc, s.Y); err != nil {
-					return fmt.Errorf("serialize s.Y of type int: %w", err)
+				if err := func(enc *irpcgen.Encoder, s image.Point) error {
+					if err := irpcgen.EncInt(enc, s.X); err != nil {
+						return fmt.Errorf("serialize s.X of type int: %w", err)
+					}
+					if err := irpcgen.EncInt(enc, s.Y); err != nil {
+						return fmt.Errorf("serialize s.Y of type int: %w", err)
+					}
+					return nil
+				}(enc, s.Max); err != nil {
+					return fmt.Errorf("serialize s.Max of type image.Point: %w", err)
 				}
 				return nil
-			}(enc, s.Max); err != nil {
-				return fmt.Errorf("serialize s.Max of type image.Point: %w", err)
+			}(enc, s.Rect); err != nil {
+				return fmt.Errorf("serialize s.Rect of type image.Rectangle: %w", err)
 			}
 			return nil
-		}(enc, s.Rect); err != nil {
-			return fmt.Errorf("serialize s.Rect of type image.Rectangle: %w", err)
-		}
-		return nil
+		})
 	}(e, s.p0); err != nil {
-		return fmt.Errorf("serialize type image.RGBA: %w", err)
+		return fmt.Errorf("serialize type *image.RGBA: %w", err)
 	}
 	if err := func(enc *irpcgen.Encoder, v error) error {
 		isNil := v == nil
@@ -436,48 +906,50 @@ func (s _irpc_Renderer_RenderTileResp) Serialize(e *irpcgen.Encoder) error {
 	return nil
 }
 func (s *_irpc_Renderer_RenderTileResp) Deserialize(d *irpcgen.Decoder) error {
-	if err := func(dec *irpcgen.Decoder, s *image.RGBA) error {
-		if err := irpcgen.DecByteSlice(dec, &s.Pix); err != nil {
-			return fmt.Errorf("deserialize s.Pix of type []uint8: %w", err)
-		}
-		if err := irpcgen.DecInt(dec, &s.Stride); err != nil {
-			return fmt.Errorf("deserialize s.Stride of type int: %w", err)
-		}
-		if err := func(dec *irpcgen.Decoder, s *image.Rectangle) error {
-			if err := func(dec *irpcgen.Decoder, s *image.Point) error {
-				if err := irpcgen.DecInt(dec, &s.X); err != nil {
-					return fmt.Errorf("deserialize s.X of type int: %w", err)
-				}
-				if err := irpcgen.DecInt(dec, &s.Y); err != nil {
-					return fmt.Errorf("deserialize s.Y of type int: %w", err)
-				}
-				return nil
-			}(dec, &s.Min); err != nil {
-				return fmt.Errorf("deserialize s.Min of type image.Point: %w", err)
+	if err := func(dec *irpcgen.Decoder, pt **image.RGBA) error {
+		return irpcgen.DecPointer(dec, pt, "image.RGBA", func(dec *irpcgen.Decoder, s *image.RGBA) error {
+			if err := irpcgen.DecByteSlice(dec, &s.Pix); err != nil {
+				return fmt.Errorf("deserialize s.Pix of type []uint8: %w", err)
 			}
-			if err := func(dec *irpcgen.Decoder, s *image.Point) error {
-				if err := irpcgen.DecInt(dec, &s.X); err != nil {
-					return fmt.Errorf("deserialize s.X of type int: %w", err)
+			if err := irpcgen.DecInt(dec, &s.Stride); err != nil {
+				return fmt.Errorf("deserialize s.Stride of type int: %w", err)
+			}
+			if err := func(dec *irpcgen.Decoder, s *image.Rectangle) error {
+				if err := func(dec *irpcgen.Decoder, s *image.Point) error {
+					if err := irpcgen.DecInt(dec, &s.X); err != nil {
+						return fmt.Errorf("deserialize s.X of type int: %w", err)
+					}
+					if err := irpcgen.DecInt(dec, &s.Y); err != nil {
+						return fmt.Errorf("deserialize s.Y of type int: %w", err)
+					}
+					return nil
+				}(dec, &s.Min); err != nil {
+					return fmt.Errorf("deserialize s.Min of type image.Point: %w", err)
 				}
-				if err := irpcgen.DecInt(dec, &s.Y); err != nil {
-					return fmt.Errorf("deserialize s.Y of type int: %w", err)
+				if err := func(dec *irpcgen.Decoder, s *image.Point) error {
+					if err := irpcgen.DecInt(dec, &s.X); err != nil {
+						return fmt.Errorf("deserialize s.X of type int: %w", err)
+					}
+					if err := irpcgen.DecInt(dec, &s.Y); err != nil {
+						return fmt.Errorf("deserialize s.Y of type int: %w", err)
+					}
+					return nil
+				}(dec, &s.Max); err != nil {
+					return fmt.Errorf("deserialize s.Max of type image.Point: %w", err)
 				}
 				return nil
-			}(dec, &s.Max); err != nil {
-				return fmt.Errorf("deserialize s.Max of type image.Point: %w", err)
+			}(dec, &s.Rect); err != nil {
+				return fmt.Errorf("deserialize s.Rect of type image.Rectangle: %w", err)
 			}
 			return nil
-		}(dec, &s.Rect); err != nil {
-			return fmt.Errorf("deserialize s.Rect of type image.Rectangle: %w", err)
-		}
-		return nil
+		})
 	}(d, &s.p0); err != nil {
-		return fmt.Errorf("deserialize type image.RGBA: %w", err)
+		return fmt.Errorf("deserialize type *image.RGBA: %w", err)
 	}
 	if err := func(dec *irpcgen.Decoder, s *error) error {
 		var isNil bool
 		if err := irpcgen.DecIsNil(dec, &isNil); err != nil {
-			return fmt.Errorf("deserialize isNil: %w:", err)
+			return fmt.Errorf("deserialize isNil: %w", err)
 		}
 		if isNil {
 			return nil

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -17,18 +18,18 @@ func main() {
 
 func run() error {
 	// standard tcp listener
-	tcpListener, err := net.Listen("tcp", ":8080")
+	log.Println("tcp listening on port: 8081")
+	tcpListener, err := net.Listen("tcp", ":8081")
 	if err != nil {
 		return fmt.Errorf("net.Listen: %w", err)
 	}
 
-	// TiledImage provides tiles to be rendered and composes them to create final image
-	// also implements the ImgProvider interface defined in api.go
-	img := newWorkScheduler(1920, 1080, mandel.SeahorseValley)
+	imgWorkSched := newImgWorkScheduler(1920, 1080, mandel.SeahorseValley)
 
 	// irpc service providing access to ImgProvider.GetImage as defined in api.go
 	// it directs call to TiledImage.
-	imgProviderService := mandel.NewImgProviderIrpcService(img)
+	imgProviderService := mandel.NewImgProviderIrpcService(imgWorkSched)
+	tileProviderService := mandel.NewTileProviderIrpcService(imgWorkSched)
 
 	// each connected client is passed to the workScheduler to help with the render
 	server := irpc.NewServer(irpc.WithOnConnect(func(ep *irpc.Endpoint) {
@@ -40,7 +41,7 @@ func run() error {
 				log.Printf("err: new Rendering client: %v", err)
 				return
 			}
-			if err := img.render(rc); err != nil {
+			if err := imgWorkSched.addRenderer(rc); err != nil {
 				log.Printf("err: render on client %q: %v", ep.RemoteAddr(), err)
 				return
 			}
@@ -48,8 +49,29 @@ func run() error {
 	}))
 
 	// we provide the GetImage call to clients, so they can save it once it is renered
-	server.AddService(imgProviderService)
+	server.AddService(imgProviderService, tileProviderService)
+
+	wsListen, httpServer := webServer(context.Background())
+
+	go func() {
+		if err := httpServer.ListenAndServe(); err != nil {
+			log.Fatalf("httpServer: %v", err)
+		}
+	}()
+
+	go func() {
+		if err := server.Serve(tcpListener); err != nil {
+			log.Fatalf("server.Serve tcp: %v", err)
+		}
+	}()
+
+	go func() {
+		if err := server.Serve(wsListen); err != nil {
+			log.Fatalf("server.Serve ws: %v", err)
+		}
+	}()
 
 	log.Printf("running mandelbrot server")
-	return server.Serve(tcpListener)
+	select {}
+	// return server.Serve(tcpListener)
 }

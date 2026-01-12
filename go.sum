@@ -1,2 +1,4 @@
+github.com/coder/websocket v1.8.14 h1:9L0p0iKiNOibykf283eHkKUHHrpG7f65OE3BhhO7v9g=
+github.com/coder/websocket v1.8.14/go.mod h1:NX3SzP+inril6yawo5CQXx8+fk145lPDC6pumgx0mVg=
 github.com/marben/irpc v0.0.0-20251205115150-3b57f8834ce8 h1:4jUiItv0fx9brgaJ7IMmqui5mogb5AF6/wKp6/kcZWc=
 github.com/marben/irpc v0.0.0-20251205115150-3b57f8834ce8/go.mod h1:Yzs1ONlt4xfo6jqOARI2gK4YfxLCOIDL7QyQW9dz3/0=
