@@ -7,4 +7,3 @@ require (
 	github.com/marben/irpc v0.0.0-20260109104542-2d3fde99869b
 )
 
-// replace github.com/marben/irpc => ../irpc

@@ -6,7 +6,11 @@ import (
 	"syscall/js"
 )
 
-type WSReadWriteCloser struct {
+// WebsocketReadWriteCloser provides a Go io.ReadWriteCloser interface over a JavaScript WebSocket (js.Value).
+// It manages concurrent access, buffering, and event handling for WebSocket communication in WASM.
+//
+// This struct is intended for use in Go WASM applications that need to use irpc protocol
+type WebsocketReadWriteCloser struct {
 	ws js.Value
 
 	mu     sync.Mutex // needed because js onClose event can preempt Write() call
@@ -21,8 +25,8 @@ type WSReadWriteCloser struct {
 	buf []byte
 }
 
-func NewWSReadWriteCloser(ws js.Value) *WSReadWriteCloser {
-	c := &WSReadWriteCloser{
+func NewWebsocketReadWriteCloser(ws js.Value) *WebsocketReadWriteCloser {
+	c := &WebsocketReadWriteCloser{
 		ws:     ws,
 		readCh: make(chan []byte, 8),
 		openCh: make(chan struct{}),
@@ -54,7 +58,7 @@ func NewWSReadWriteCloser(ws js.Value) *WSReadWriteCloser {
 	}))
 
 	ws.Set("onclose", js.FuncOf(func(js.Value, []js.Value) any {
-		logScreen("ws onClose received")
+		logScreenf("ws onClose received")
 		c.mu.Lock()
 		c.closed = true
 		close(c.readCh)
@@ -65,7 +69,7 @@ func NewWSReadWriteCloser(ws js.Value) *WSReadWriteCloser {
 	return c
 }
 
-func (c *WSReadWriteCloser) Read(p []byte) (int, error) {
+func (c *WebsocketReadWriteCloser) Read(p []byte) (int, error) {
 	// First, drain existing buffer
 	if len(c.buf) == 0 {
 		// No buffered data -> wait for next message
@@ -82,7 +86,7 @@ func (c *WSReadWriteCloser) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-func (c *WSReadWriteCloser) Write(p []byte) (int, error) {
+func (c *WebsocketReadWriteCloser) Write(p []byte) (int, error) {
 	if err := c.waitOpen(); err != nil {
 		return 0, err
 	}
@@ -101,7 +105,7 @@ func (c *WSReadWriteCloser) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (c *WSReadWriteCloser) Close() error {
+func (c *WebsocketReadWriteCloser) Close() error {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
@@ -123,7 +127,7 @@ func (c *WSReadWriteCloser) Close() error {
 	return nil
 }
 
-func (c *WSReadWriteCloser) waitOpen() error {
+func (c *WebsocketReadWriteCloser) waitOpen() error {
 	<-c.openCh
 
 	c.mu.Lock()

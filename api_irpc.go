@@ -10,10 +10,10 @@ import (
 )
 
 var _ImgProviderIrpcId = []byte{
-	0x34, 0xe5, 0x95, 0x48, 0xb3, 0xaf, 0x66, 0x8e,
-	0x3e, 0x36, 0x13, 0x37, 0x37, 0x30, 0x48, 0x8b,
-	0xc0, 0x38, 0xc1, 0x0c, 0xeb, 0x42, 0xe0, 0x37,
-	0x29, 0x09, 0x06, 0x3b, 0x5e, 0x6a, 0x36, 0xa4,
+	0xc6, 0x5f, 0xbc, 0x17, 0x2d, 0xed, 0xc9, 0x48,
+	0xa0, 0x14, 0x59, 0x3e, 0x5b, 0x25, 0x5f, 0xb7,
+	0x4e, 0x73, 0x4a, 0x05, 0x21, 0xc4, 0x5e, 0x7c,
+	0x90, 0x13, 0x0c, 0xa0, 0xb8, 0x58, 0x89, 0xc1,
 }
 
 type ImgProviderIrpcService struct {
@@ -46,7 +46,7 @@ func (s *ImgProviderIrpcService) GetFuncCall(funcId irpcgen.FuncId) (irpcgen.Arg
 
 // ImgProviderIrpcClient implements ImgProvider
 //
-// used by cli client to get full image once it's rendered
+// ImgProvider is implemented by the server and called by the CLI client to get the full image once rendering is complete.
 type ImgProviderIrpcClient struct {
 	endpoint irpcgen.Endpoint
 }
@@ -57,6 +57,9 @@ func NewImgProviderIrpcClient(endpoint irpcgen.Endpoint) (*ImgProviderIrpcClient
 	}
 	return &ImgProviderIrpcClient{endpoint: endpoint}, nil
 }
+
+// GetImage returns the fully rendered image.
+// Returns: image.RGBA pointer and error if retrieval fails.
 func (_c *ImgProviderIrpcClient) GetImage() (*image.RGBA, error) {
 	var resp _irpc_ImgProvider_GetImageResp
 	if err := _c.endpoint.CallRemoteFunc(context.Background(), _ImgProviderIrpcId, 0, irpcgen.EmptySerializable{}, &resp); err != nil {
@@ -200,10 +203,10 @@ func (i _error_ImgProvider_impl) Error() string {
 }
 
 var _TileProviderIrpcId = []byte{
-	0x96, 0x0b, 0xba, 0x5f, 0x54, 0xc0, 0x01, 0xb9,
-	0xaf, 0x41, 0x09, 0xe4, 0x0a, 0x8c, 0xc0, 0x08,
-	0xb0, 0xdb, 0x06, 0xc0, 0x6c, 0x33, 0x82, 0x3a,
-	0x3c, 0x7c, 0xb8, 0xb0, 0x0f, 0x72, 0xf9, 0xba,
+	0x5d, 0xec, 0xc4, 0x4a, 0xd5, 0x47, 0x4d, 0x4d,
+	0x68, 0xc7, 0x30, 0x08, 0x5c, 0xf4, 0xe5, 0xdd,
+	0x37, 0x26, 0xcf, 0x0b, 0xa6, 0xff, 0x20, 0x70,
+	0xdc, 0x26, 0xac, 0x4c, 0x72, 0xb6, 0x40, 0xa7,
 }
 
 type TileProviderIrpcService struct {
@@ -248,7 +251,25 @@ func (s *TileProviderIrpcService) GetFuncCall(funcId irpcgen.FuncId) (irpcgen.Ar
 			return func(ctx context.Context) irpcgen.Serializable {
 				// EXECUTE
 				var resp _irpc_TileProvider_FullImageDimensionsResp
-				resp.x, resp.y, resp.err = s.impl.FullImageDimensions()
+				resp.width, resp.height, resp.err = s.impl.FullImageDimensions()
+				return resp
+			}, nil
+		}, nil
+	case 3: // TotalTilesNumber
+		return func(d *irpcgen.Decoder) (irpcgen.FuncExecutor, error) {
+			return func(ctx context.Context) irpcgen.Serializable {
+				// EXECUTE
+				var resp _irpc_TileProvider_TotalTilesNumberResp
+				resp.p0, resp.p1 = s.impl.TotalTilesNumber()
+				return resp
+			}, nil
+		}, nil
+	case 4: // Workers
+		return func(d *irpcgen.Decoder) (irpcgen.FuncExecutor, error) {
+			return func(ctx context.Context) irpcgen.Serializable {
+				// EXECUTE
+				var resp _irpc_TileProvider_WorkersResp
+				resp.p0, resp.p1 = s.impl.Workers()
 				return resp
 			}, nil
 		}, nil
@@ -259,7 +280,8 @@ func (s *TileProviderIrpcService) GetFuncCall(funcId irpcgen.FuncId) (irpcgen.Ar
 
 // TileProviderIrpcClient implements TileProvider
 //
-// used by web client to show rendering progress tile by tile
+// TileProvider is implemented by the server and used by the web client to show rendering progress tile by tile.
+// Web clients use polling to check for updates.
 type TileProviderIrpcClient struct {
 	endpoint irpcgen.Endpoint
 }
@@ -270,6 +292,8 @@ func NewTileProviderIrpcClient(endpoint irpcgen.Endpoint) (*TileProviderIrpcClie
 	}
 	return &TileProviderIrpcClient{endpoint: endpoint}, nil
 }
+
+// FinishedTiles returns a map of finished tile rectangles.
 func (_c *TileProviderIrpcClient) FinishedTiles() (map[image.Rectangle]struct{}, error) {
 	var resp _irpc_TileProvider_FinishedTilesResp
 	if err := _c.endpoint.CallRemoteFunc(context.Background(), _TileProviderIrpcId, 0, irpcgen.EmptySerializable{}, &resp); err != nil {
@@ -278,6 +302,8 @@ func (_c *TileProviderIrpcClient) FinishedTiles() (map[image.Rectangle]struct{},
 	}
 	return resp.p0, resp.p1
 }
+
+// GetTileImg returns the image for a specific tile rectangle.
 func (_c *TileProviderIrpcClient) GetTileImg(rect image.Rectangle) (*image.RGBA, error) {
 	var req = _irpc_TileProvider_GetTileImgReq{
 		rect: rect,
@@ -289,13 +315,35 @@ func (_c *TileProviderIrpcClient) GetTileImg(rect image.Rectangle) (*image.RGBA,
 	}
 	return resp.p0, resp.p1
 }
-func (_c *TileProviderIrpcClient) FullImageDimensions() (x int, y int, err error) {
+
+// FullImageDimensions returns the width and height of the full image.
+func (_c *TileProviderIrpcClient) FullImageDimensions() (width int, height int, err error) {
 	var resp _irpc_TileProvider_FullImageDimensionsResp
 	if err := _c.endpoint.CallRemoteFunc(context.Background(), _TileProviderIrpcId, 2, irpcgen.EmptySerializable{}, &resp); err != nil {
 		var zero _irpc_TileProvider_FullImageDimensionsResp
-		return zero.x, zero.y, err
+		return zero.width, zero.height, err
 	}
-	return resp.x, resp.y, resp.err
+	return resp.width, resp.height, resp.err
+}
+
+// TotalTilesNumber returns the total number of tiles to be rendered.
+func (_c *TileProviderIrpcClient) TotalTilesNumber() (int, error) {
+	var resp _irpc_TileProvider_TotalTilesNumberResp
+	if err := _c.endpoint.CallRemoteFunc(context.Background(), _TileProviderIrpcId, 3, irpcgen.EmptySerializable{}, &resp); err != nil {
+		var zero _irpc_TileProvider_TotalTilesNumberResp
+		return zero.p0, err
+	}
+	return resp.p0, resp.p1
+}
+
+// Workers returns the number of workers currently running.
+func (_c *TileProviderIrpcClient) Workers() (int, error) {
+	var resp _irpc_TileProvider_WorkersResp
+	if err := _c.endpoint.CallRemoteFunc(context.Background(), _TileProviderIrpcId, 4, irpcgen.EmptySerializable{}, &resp); err != nil {
+		var zero _irpc_TileProvider_WorkersResp
+		return zero.p0, err
+	}
+	return resp.p0, resp.p1
 }
 
 type _irpc_TileProvider_FinishedTilesResp struct {
@@ -604,17 +652,17 @@ func (s *_irpc_TileProvider_GetTileImgResp) Deserialize(d *irpcgen.Decoder) erro
 }
 
 type _irpc_TileProvider_FullImageDimensionsResp struct {
-	x   int
-	y   int
-	err error
+	width  int
+	height int
+	err    error
 }
 
 func (s _irpc_TileProvider_FullImageDimensionsResp) Serialize(e *irpcgen.Encoder) error {
-	if err := irpcgen.EncInt(e, s.x); err != nil {
-		return fmt.Errorf("serialize \"x\" of type int: %w", err)
+	if err := irpcgen.EncInt(e, s.width); err != nil {
+		return fmt.Errorf("serialize \"width\" of type int: %w", err)
 	}
-	if err := irpcgen.EncInt(e, s.y); err != nil {
-		return fmt.Errorf("serialize \"y\" of type int: %w", err)
+	if err := irpcgen.EncInt(e, s.height); err != nil {
+		return fmt.Errorf("serialize \"height\" of type int: %w", err)
 	}
 	if err := func(enc *irpcgen.Encoder, v error) error {
 		isNil := v == nil
@@ -635,11 +683,11 @@ func (s _irpc_TileProvider_FullImageDimensionsResp) Serialize(e *irpcgen.Encoder
 	return nil
 }
 func (s *_irpc_TileProvider_FullImageDimensionsResp) Deserialize(d *irpcgen.Decoder) error {
-	if err := irpcgen.DecInt(d, &s.x); err != nil {
-		return fmt.Errorf("deserialize x of type int: %w", err)
+	if err := irpcgen.DecInt(d, &s.width); err != nil {
+		return fmt.Errorf("deserialize width of type int: %w", err)
 	}
-	if err := irpcgen.DecInt(d, &s.y); err != nil {
-		return fmt.Errorf("deserialize y of type int: %w", err)
+	if err := irpcgen.DecInt(d, &s.height); err != nil {
+		return fmt.Errorf("deserialize height of type int: %w", err)
 	}
 	if err := func(dec *irpcgen.Decoder, s *error) error {
 		var isNil bool
@@ -661,11 +709,113 @@ func (s *_irpc_TileProvider_FullImageDimensionsResp) Deserialize(d *irpcgen.Deco
 	return nil
 }
 
+type _irpc_TileProvider_TotalTilesNumberResp struct {
+	p0 int
+	p1 error
+}
+
+func (s _irpc_TileProvider_TotalTilesNumberResp) Serialize(e *irpcgen.Encoder) error {
+	if err := irpcgen.EncInt(e, s.p0); err != nil {
+		return fmt.Errorf("serialize type int: %w", err)
+	}
+	if err := func(enc *irpcgen.Encoder, v error) error {
+		isNil := v == nil
+		if err := irpcgen.EncIsNil(enc, isNil); err != nil {
+			return fmt.Errorf("serialize isNil == %t: %w", isNil, err)
+		}
+		if isNil {
+			return nil
+		}
+		_Error_0_ := v.Error()
+		if err := irpcgen.EncString(enc, _Error_0_); err != nil {
+			return fmt.Errorf("serialize \"v.Error()\" of type string: %w", err)
+		}
+		return nil
+	}(e, s.p1); err != nil {
+		return fmt.Errorf("serialize type error: %w", err)
+	}
+	return nil
+}
+func (s *_irpc_TileProvider_TotalTilesNumberResp) Deserialize(d *irpcgen.Decoder) error {
+	if err := irpcgen.DecInt(d, &s.p0); err != nil {
+		return fmt.Errorf("deserialize type int: %w", err)
+	}
+	if err := func(dec *irpcgen.Decoder, s *error) error {
+		var isNil bool
+		if err := irpcgen.DecIsNil(dec, &isNil); err != nil {
+			return fmt.Errorf("deserialize isNil: %w", err)
+		}
+		if isNil {
+			return nil
+		}
+		var impl _error_TileProvider_impl
+		if err := irpcgen.DecString(dec, &impl._Error_0_); err != nil {
+			return fmt.Errorf("deserialize \"_Error_0_\" string: %w", err)
+		}
+		*s = impl
+		return nil
+	}(d, &s.p1); err != nil {
+		return fmt.Errorf("deserialize type error: %w", err)
+	}
+	return nil
+}
+
+type _irpc_TileProvider_WorkersResp struct {
+	p0 int
+	p1 error
+}
+
+func (s _irpc_TileProvider_WorkersResp) Serialize(e *irpcgen.Encoder) error {
+	if err := irpcgen.EncInt(e, s.p0); err != nil {
+		return fmt.Errorf("serialize type int: %w", err)
+	}
+	if err := func(enc *irpcgen.Encoder, v error) error {
+		isNil := v == nil
+		if err := irpcgen.EncIsNil(enc, isNil); err != nil {
+			return fmt.Errorf("serialize isNil == %t: %w", isNil, err)
+		}
+		if isNil {
+			return nil
+		}
+		_Error_0_ := v.Error()
+		if err := irpcgen.EncString(enc, _Error_0_); err != nil {
+			return fmt.Errorf("serialize \"v.Error()\" of type string: %w", err)
+		}
+		return nil
+	}(e, s.p1); err != nil {
+		return fmt.Errorf("serialize type error: %w", err)
+	}
+	return nil
+}
+func (s *_irpc_TileProvider_WorkersResp) Deserialize(d *irpcgen.Decoder) error {
+	if err := irpcgen.DecInt(d, &s.p0); err != nil {
+		return fmt.Errorf("deserialize type int: %w", err)
+	}
+	if err := func(dec *irpcgen.Decoder, s *error) error {
+		var isNil bool
+		if err := irpcgen.DecIsNil(dec, &isNil); err != nil {
+			return fmt.Errorf("deserialize isNil: %w", err)
+		}
+		if isNil {
+			return nil
+		}
+		var impl _error_TileProvider_impl
+		if err := irpcgen.DecString(dec, &impl._Error_0_); err != nil {
+			return fmt.Errorf("deserialize \"_Error_0_\" string: %w", err)
+		}
+		*s = impl
+		return nil
+	}(d, &s.p1); err != nil {
+		return fmt.Errorf("deserialize type error: %w", err)
+	}
+	return nil
+}
+
 var _RendererIrpcId = []byte{
-	0xf9, 0x4a, 0x78, 0xc8, 0x69, 0x60, 0xbb, 0xb0,
-	0xa5, 0xa1, 0x7f, 0xdf, 0xaa, 0x4d, 0x72, 0x97,
-	0x70, 0xa8, 0x1f, 0xb5, 0xa9, 0x54, 0xde, 0x9c,
-	0xee, 0x70, 0x27, 0xfd, 0x82, 0x24, 0xeb, 0xf3,
+	0x40, 0xdb, 0x9d, 0x9f, 0xf1, 0x00, 0xb0, 0xe1,
+	0xfc, 0x10, 0x54, 0x7f, 0xa9, 0x28, 0xf7, 0xd3,
+	0x80, 0xb0, 0xce, 0x58, 0x71, 0xb0, 0xab, 0x61,
+	0xab, 0x13, 0xe2, 0xe5, 0x43, 0x03, 0xed, 0xe1,
 }
 
 type RendererIrpcService struct {
@@ -702,6 +852,8 @@ func (s *RendererIrpcService) GetFuncCall(funcId irpcgen.FuncId) (irpcgen.ArgDes
 }
 
 // RendererIrpcClient implements Renderer
+//
+// Renderer is implemented by all rendering clients (CLI and web) and called from the server.
 type RendererIrpcClient struct {
 	endpoint irpcgen.Endpoint
 }
@@ -712,6 +864,12 @@ func NewRendererIrpcClient(endpoint irpcgen.Endpoint) (*RendererIrpcClient, erro
 	}
 	return &RendererIrpcClient{endpoint: endpoint}, nil
 }
+
+// RenderTile renders a single tile of the Mandelbrot image.
+//   r: region of the Mandelbrot set to render
+//   tile: rectangle specifying the tile area
+//   imgW, imgH: full image width and height
+// Returns: image.RGBA pointer for the tile, and error if rendering fails.
 func (_c *RendererIrpcClient) RenderTile(r Region, tile image.Rectangle, imgW int, imgH int) (*image.RGBA, error) {
 	var req = _irpc_Renderer_RenderTileReq{
 		r:    r,

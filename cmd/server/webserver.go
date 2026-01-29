@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -10,24 +11,43 @@ import (
 	"github.com/coder/websocket"
 )
 
-func webServer(ctx context.Context) (net.Listener, *http.Server) {
-	l := NewWSListener(ctx, ":8080/ws")
+// WebServer creates server serving files in ./static folder
+// initializes websocket endpoint and returns net.Listener accepting websocket connections
+func webServer(ctx context.Context, port int) (net.Listener, *http.Server) {
+	l := NewWSListener(ctx, fmt.Sprintf(":%d/ws", port))
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ws", wsHandler(l))
+	mux.HandleFunc("/ws", websocketHandler(l))
 	mux.Handle("/", http.FileServer(http.Dir("./static")))
 
 	srv := &http.Server{
-		Addr:              ":8080",
+		Addr:              fmt.Sprintf(":%d", port),
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	log.Println("listening on http://localhost:8080")
+	log.Printf("listening on http://localhost:%d", port)
 	return l, srv
 }
 
-// WSListener is adapter from wsHandler to net.Listener()
-type WSListener struct {
+// websocketHandler handles the http ws endpoint
+// if websocket is succesfully initialized it is passed to WebsocketListener so it can be accepted
+func websocketHandler(l *WebsocketListener) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+			OriginPatterns: []string{"*"}, // TODO: tighten in prod
+		})
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		l.ch <- c
+	}
+}
+
+// WebsocketListener implements net.Listener
+// it's an addapter used by websocketHandler
+type WebsocketListener struct {
 	ch     chan *websocket.Conn
 	done   chan struct{}
 	ctx    context.Context
@@ -35,9 +55,9 @@ type WSListener struct {
 	addr   wsAddr
 }
 
-func NewWSListener(ctx context.Context, addr string) *WSListener {
+func NewWSListener(ctx context.Context, addr string) *WebsocketListener {
 	ctx, cancel := context.WithCancel(ctx)
-	return &WSListener{
+	return &WebsocketListener{
 		ch:     make(chan *websocket.Conn),
 		done:   make(chan struct{}),
 		ctx:    ctx,
@@ -46,16 +66,24 @@ func NewWSListener(ctx context.Context, addr string) *WSListener {
 	}
 }
 
-func (l *WSListener) Accept() (net.Conn, error) {
+func (l *WebsocketListener) Accept() (net.Conn, error) {
 	select {
 	case c := <-l.ch:
-		log.Printf("obtained ws conn: %v", c)
 		return websocket.NetConn(l.ctx, c, websocket.MessageBinary), nil
 	case <-l.ctx.Done():
 		return nil, context.Cause(l.ctx)
 	case <-l.done:
 		return nil, net.ErrClosed
 	}
+}
+
+func (l *WebsocketListener) Addr() net.Addr {
+	return l.addr
+}
+
+func (l *WebsocketListener) Close() error {
+	l.cancel()
+	return nil
 }
 
 type wsAddr struct {
@@ -68,27 +96,4 @@ func (a wsAddr) Network() string {
 
 func (a wsAddr) String() string {
 	return a.addr
-}
-
-func (l *WSListener) Addr() net.Addr {
-	return l.addr
-}
-
-func (l *WSListener) Close() error {
-	l.cancel()
-	return nil
-}
-
-func wsHandler(l *WSListener) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-			OriginPatterns: []string{"*"}, // tighten in prod
-		})
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		l.ch <- c
-	}
 }

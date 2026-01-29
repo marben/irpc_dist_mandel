@@ -1,69 +1,58 @@
+// img.go provides simple functions to initialize and draw on an HTML canvas from Go (WASM) code.
+// Intended for demo purposes: initializes a canvas and draws image tiles using browser APIs.
+//
+// Note: These functions are designed for use in a browser environment with WebAssembly (WASM).
+
 package main
 
 import (
-	"fmt"
 	"image"
 	"syscall/js"
-	"time"
 )
 
-// displays image on the site
-func displayImage(img *image.RGBA) {
-	start := time.Now()
-	// 1. Get the Canvas element and its 2D context
-	document := js.Global().Get("document")
-	canvas := document.Call("getElementById", "myCanvas")
-	ctx := canvas.Call("getContext", "2d")
-
-	width := img.Rect.Dx()
-	height := img.Rect.Dy()
-
-	// 2. Create a JS TypedArray (Uint8ClampedArray) to hold the pixel data
-	// The length is width * height * 4 (RGBA)
-	jsData := js.Global().Get("Uint8ClampedArray").New(len(img.Pix))
-
-	// 3. Copy the Go byte slice into the JS TypedArray
-	js.CopyBytesToJS(jsData, img.Pix)
-
-	// 4. Create ImageData and put it on the canvas
-	imageData := js.Global().Get("ImageData").New(jsData, width, height)
-	ctx.Call("putImageData", imageData, 0, 0)
-	elapsed := time.Since(start)
-	logScreen(fmt.Sprintf("draw took %s", elapsed))
-}
-
-func initImage(width, height int, color string) {
+// initCanvas initializes the HTML canvas with the given id ("myCanvas").
+// Fills the canvas with the specified color.
+//
+// Parameters:
+//   width, height: dimensions of the canvas in pixels
+//   color: CSS color string (e.g., "#000", "red")
+//
+// Note: Assumes the canvas element exists in the DOM. No error is thrown if not found.
+func initCanvas(width, height int, color string) {
 	doc := js.Global().Get("document")
 	canvas := doc.Call("getElementById", "myCanvas")
-
+	// Assumes the canvas element exists in the DOM.
 	canvas.Set("width", width)
 	canvas.Set("height", height)
 
 	ctx := canvas.Call("getContext", "2d")
-
 	ctx.Set("fillStyle", color)
 	ctx.Call("fillRect", 0, 0, width, height)
 }
 
+// drawTileToCanvas draws an *image.RGBA tile onto the canvas with id "myCanvas".
+// The tile's Rect field determines its position on the canvas.
+//
+// Parameters:
+//   tile: pointer to image.RGBA; tile.Rect must be set to the intended canvas region
+//
+// Note: Intended for use in browser/WASM context. Assumes the canvas element exists in the DOM.
 func drawTileToCanvas(tile *image.RGBA) {
-	// 1. Get the browser context
-	document := js.Global().Get("document")
-	canvas := document.Call("getElementById", "myCanvas")
+	doc := js.Global().Get("document")
+	canvas := doc.Call("getElementById", "myCanvas")
+	// Assumes the canvas element exists in the DOM.
 	ctx := canvas.Call("getContext", "2d")
 
-	// 2. Prepare the pixel data
-	// We copy the tile's Pix slice (which starts at index 0 for the tile)
+	// Prepare the pixel data for the browser
 	jsData := js.Global().Get("Uint8ClampedArray").New(len(tile.Pix))
 	js.CopyBytesToJS(jsData, tile.Pix)
 
-	// 3. Create the ImageData object
-	// Note: ImageData always expects width/height of the buffer provided
+	// Create the ImageData object (width/height must match the buffer)
 	width := tile.Rect.Dx()
 	height := tile.Rect.Dy()
 	imageData := js.Global().Get("ImageData").New(jsData, width, height)
 
-	// 4. Draw to the canvas at the tile's original coordinates
-	// putImageData(data, x, y)
+	// Draw the tile at its original coordinates on the canvas
 	posX := tile.Rect.Min.X
 	posY := tile.Rect.Min.Y
 	ctx.Call("putImageData", imageData, posX, posY)

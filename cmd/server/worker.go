@@ -12,9 +12,10 @@ import (
 )
 
 type imgWorkScheduler struct {
-	workers int
-	mRegion mandel.Region
-	img     *image.RGBA
+	workers    int
+	mRegion    mandel.Region
+	img        *image.RGBA
+	totalTiles int
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
@@ -28,10 +29,34 @@ type imgWorkScheduler struct {
 	m              sync.Mutex
 }
 
+func newImgWorkScheduler(w, h int, region mandel.Region) *imgWorkScheduler {
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	allTilesSlice := splitRectNoClip(img.Bounds(), 64, 64)
+	allTiles := make(map[image.Rectangle]struct{}, len(allTilesSlice))
+	for _, t := range allTilesSlice {
+		allTiles[t] = struct{}{}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	return &imgWorkScheduler{
+		img:            img,
+		mRegion:        region,
+		unstartedTiles: allTiles,
+		totalTiles:     len(allTiles),
+		inProcessTiles: make(map[image.Rectangle]struct{}),
+		finishedTiles:  make(map[image.Rectangle]struct{}, len(allTiles)),
+		totalPixels:    w * h,
+		ctx:            ctx,
+		ctxCancel:      cancel,
+	}
+}
+
 // FinishedTiles implements mandel.TileProvider.
+// is called by web client to figure out which tiles to download as image and display
 func (iws *imgWorkScheduler) FinishedTiles() (map[image.Rectangle]struct{}, error) {
 	iws.m.Lock()
 	defer iws.m.Unlock()
+
+	// copy is needed to because iws.finishedTiles is mutable
 	rtnMap := make(map[image.Rectangle]struct{}, len(iws.finishedTiles))
 	maps.Copy(rtnMap, iws.finishedTiles)
 
@@ -66,24 +91,17 @@ func (iws *imgWorkScheduler) GetTileImg(tileRect image.Rectangle) (*image.RGBA, 
 	return tileImg, nil
 }
 
-func newImgWorkScheduler(w, h int, region mandel.Region) *imgWorkScheduler {
-	img := image.NewRGBA(image.Rect(0, 0, w, h))
-	allTilesSlice := splitRectNoClip(img.Bounds(), 64, 64)
-	allTiles := make(map[image.Rectangle]struct{}, len(allTilesSlice))
-	for _, t := range allTilesSlice {
-		allTiles[t] = struct{}{}
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	return &imgWorkScheduler{
-		img:            img,
-		mRegion:        region,
-		unstartedTiles: allTiles,
-		inProcessTiles: make(map[image.Rectangle]struct{}),
-		finishedTiles:  make(map[image.Rectangle]struct{}, len(allTiles)),
-		totalPixels:    w * h,
-		ctx:            ctx,
-		ctxCancel:      cancel,
-	}
+// TotalTilesNumber implements mandel.TileProvider.
+func (iws *imgWorkScheduler) TotalTilesNumber() (int, error) {
+	return iws.totalTiles, nil
+}
+
+// Workers implements mandel.TileProvider.
+func (iws *imgWorkScheduler) Workers() (int, error) {
+	iws.m.Lock()
+	defer iws.m.Unlock()
+
+	return iws.workers, nil
 }
 
 func (iws *imgWorkScheduler) popTile() (tile image.Rectangle, found bool) {
@@ -157,20 +175,20 @@ func (iws *imgWorkScheduler) tileFinished(tileImg *image.RGBA) {
 
 func (iws *imgWorkScheduler) incActiveWorkers() {
 	iws.m.Lock()
-	iws.workers++
-	w := iws.workers
-	iws.m.Unlock()
+	defer iws.m.Unlock()
 
-	log.Printf("workers: %d", w)
+	iws.workers++
+
+	log.Printf("workers: %d", iws.workers)
 }
 
 func (iws *imgWorkScheduler) decActiveWorkers() {
 	iws.m.Lock()
-	iws.workers--
-	w := iws.workers
-	iws.m.Unlock()
+	defer iws.m.Unlock()
 
-	log.Printf("workers: %d", w)
+	iws.workers--
+
+	log.Printf("workers: %d", iws.workers)
 }
 
 // renders unfinished tiles on provided Renderer

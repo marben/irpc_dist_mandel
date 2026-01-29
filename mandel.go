@@ -1,9 +1,5 @@
 package mandel
 
-// var BasicParams = Tile{
-// 	Region: SeahorseValley,
-// }
-
 // Region within the Mandelbrot set
 type Region struct {
 	Xmin, Xmax float64
@@ -11,6 +7,7 @@ type Region struct {
 }
 
 // Classic regions / landmarks in the Mandelbrot set
+// You can replace them in the cmd/server/server.go file to render different parts of mandelbrot set
 var (
 	// Seahorse Valley – dense filaments and repeating “seahorse” curls
 	SeahorseValley = Region{
@@ -61,7 +58,7 @@ var (
 	}
 )
 
-type Tile struct {
-	X0, Y0 int // top-left pixel in global image
-	W, H   int // tile width & height
-}
+// type Tile struct {
+// 	X0, Y0 int // top-left pixel in global image
+// 	W, H   int // tile width & height
+// }

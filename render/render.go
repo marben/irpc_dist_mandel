@@ -3,7 +3,6 @@ package render
 import (
 	"image"
 	"image/color"
-	"log"
 	"math"
 	"math/cmplx"
 	"time"
@@ -14,11 +13,15 @@ import (
 const maxIter = 1000
 
 type RendererImpl struct {
-	// SleepTime time.Duration // artificially slow down rendering by sleeping after each tile render
+	OnTileRender func(tile image.Rectangle)
 }
 
 func (imp RendererImpl) RenderTile(r mandel.Region, tile image.Rectangle, imgW, imgH int) (*image.RGBA, error) {
-	log.Printf("rendering tile: %s", tile)
+	// log.Printf("rendering tile: %s", tile)
+
+	if imp.OnTileRender != nil {
+		imp.OnTileRender(tile)
+	}
 
 	// Image now has global coordinates (tile.Min .. tile.Max)
 	img := image.NewRGBA(tile)
