@@ -45,7 +45,7 @@ GOOS=js GOARCH=wasm go build -o ../server/static/main.wasm
 cp $(go env GOROOT)/lib/wasm/wasm_exec.js ../server/static/
 # Run the Server and open http://localhost:8080 in your browser
 ```
-![[Webclient screenshot](./webclient-thumb.png)](./webclient.png)
+![[Webclient screenshot](./webclient.png)](./webclient.png)
 
 ### 3. Run the CLI Client
 ```console
