@@ -6,10 +6,7 @@ import (
 	"syscall/js"
 )
 
-// WebsocketReadWriteCloser provides a Go io.ReadWriteCloser interface over a JavaScript WebSocket (js.Value).
-// It manages concurrent access, buffering, and event handling for WebSocket communication in WASM.
-//
-// This struct is intended for use in Go WASM applications that need to use irpc protocol
+// WebsocketReadWriteCloser provides io.ReadWriteCloser interface over a JavaScript WebSocket (js.Value).
 type WebsocketReadWriteCloser struct {
 	ws js.Value
 

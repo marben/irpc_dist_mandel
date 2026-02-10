@@ -7,18 +7,19 @@ import (
 	"math/cmplx"
 	"time"
 
-	mandel "github.com/marben/irpc_dist_mandel"
+	api "github.com/marben/irpc_dist_mandel"
 )
 
 const maxIter = 1000
 
+var _ api.Renderer = RendererImpl{}
+
 type RendererImpl struct {
+	// callback on every tile render
 	OnTileRender func(tile image.Rectangle)
 }
 
-func (imp RendererImpl) RenderTile(r mandel.Region, tile image.Rectangle, imgW, imgH int) (*image.RGBA, error) {
-	// log.Printf("rendering tile: %s", tile)
-
+func (imp RendererImpl) RenderTile(r api.MandelRegion, imgW, imgH int, tile image.Rectangle) (*image.RGBA, error) {
 	if imp.OnTileRender != nil {
 		imp.OnTileRender(tile)
 	}
@@ -49,12 +50,10 @@ func (imp RendererImpl) RenderTile(r mandel.Region, tile image.Rectangle, imgW, 
 		}
 	}
 
-	time.Sleep(mandel.RenderTileSleepTime)
+	time.Sleep(api.RenderTileSleepTime)
 
 	return img, nil
 }
-
-var _ mandel.Renderer = RendererImpl{}
 
 func MandelbrotSmooth(c complex128, maxIter int) float64 {
 	z := complex(0, 0)
@@ -99,7 +98,7 @@ func MandelbrotCircleTrap(c complex128, maxIter int, R float64) (smooth float64,
 	z := complex(0, 0)
 	minTrap := math.MaxFloat64
 
-	for i := 0; i < maxIter; i++ {
+	for i := range maxIter {
 		z = z*z + c
 
 		// -----------------------------------------

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/marben/irpc"
-	mandel "github.com/marben/irpc_dist_mandel"
+	api "github.com/marben/irpc_dist_mandel"
 	"github.com/marben/irpc_dist_mandel/render"
 )
 
@@ -38,12 +38,12 @@ func main() {
 
 	// Step 3: Set up IRPC endpoint and renderer service
 	renderer := render.RendererImpl{OnTileRender: func(tile image.Rectangle) { logScreenf("Rendering tile: %s", tile) }}
-	rendererService := mandel.NewRendererIrpcService(renderer)
+	rendererService := api.NewRendererIrpcService(renderer)
 	endpoint := irpc.NewEndpoint(websocketRWC, irpc.WithEndpointServices(rendererService))
 	logScreenf("IRPC endpoint created.")
 
 	// Step 4: Create TileProvider client for server communication
-	tilesProvider, err := mandel.NewTileProviderIrpcClient(endpoint)
+	tilesProvider, err := api.NewTileProviderIrpcClient(endpoint)
 	if err != nil {
 		logFatalf("Failed to create TileProvider client: %v", err)
 	}
@@ -53,13 +53,14 @@ func main() {
 	logScreenf("Requesting full image dimensions from server...")
 	width, height, err := tilesProvider.FullImageDimensions()
 	if err != nil {
-		logFatalf("Failed to get FullImageDimensions: %w", err)
+		logFatalf("Failed to get FullImageDimensions: %v", err)
 	}
+	logScreenf("Dimensions: %dx%d", width, height)
 	initCanvas(width, height, "#3a3a6e")
 	logScreenf("Canvas initialized to dimensions %dx%d", width, height)
 
-	// Step 6: Start tile loading/rendering loop
-	logScreenf("Starting tile loading/rendering loop...")
+	// Step 6: Start tile loading loop
+	logScreenf("Starting tile loading loop...")
 	if err := tilesLoadLoop(tilesProvider); err != nil {
 		logFatalf("tilesLoadLoop: %v", err)
 	}
@@ -88,10 +89,10 @@ func logFatalf(format string, a ...any) {
 //
 // tp: TileProvider client for fetching tile status and images from the server.
 // Returns error if any network or rendering issue occurs.
-func tilesLoadLoop(tp mandel.TileProvider) error {
-	totalTiles, err := tp.TotalTilesNumber()
+func tilesLoadLoop(tp api.TileProvider) error {
+	totalTiles, err := tp.TotalTilesCount()
 	if err != nil {
-		return fmt.Errorf("tp.TotalTilesNumber: %w", err)
+		return fmt.Errorf("tp.TotalTilesCount: %w", err)
 	}
 	hudSetTotalTiles(totalTiles)
 
@@ -114,17 +115,17 @@ func tilesLoadLoop(tp mandel.TileProvider) error {
 			}
 		}
 
-			// Update HUD with progress
-			hudSetFinishedTiles(len(finishedTiles))
+		// Update HUD with progress
+		hudSetFinishedTiles(len(finishedTiles))
 
-			workers, err := tp.Workers()
-			if err != nil {
-				return fmt.Errorf("tp.Workers: %w", err)
-			}
-			hudSetWorkers(workers)
+		workers, err := tp.WorkersCount()
+		if err != nil {
+			return fmt.Errorf("tp.WorkersCount: %w", err)
+		}
+		hudSetWorkers(workers)
 
-			// Sleep a bit. We are polling for brevity, instead of pushing updates from the server
-			time.Sleep(250 * time.Millisecond)
+		// Sleep a bit. We are polling for brevity, instead of pushing updates from the server
+		time.Sleep(250 * time.Millisecond)
 	}
 }
 

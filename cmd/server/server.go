@@ -7,7 +7,7 @@ import (
 	"net"
 
 	"github.com/marben/irpc"
-	mandel "github.com/marben/irpc_dist_mandel"
+	api "github.com/marben/irpc_dist_mandel"
 )
 
 // main is the entry point for the Mandelbrot server.
@@ -19,28 +19,28 @@ func main() {
 }
 
 func run() error {
-	// replace mandel.SeahorseValley with other predefined region to see other parts of mb set
-	imgWorkScheduler := newImgWorkScheduler(1920, 1080, mandel.SeahorseValley)
+	// replace SeahorseValley with other predefined region to see other parts of mb set
+	imgWorkScheduler := newImgWorkScheduler(1920, 1080, SeahorseValley)
 
-	// imgProviderIrpcService provides mandel.ImgProvider interface over network
+	// imgProviderIrpcService provides api.ImgProvider interface over network
 	// It defines only one function GetImage(), which returns the full image upon complete render
 	// It is used by our cli clients.
 	// ImgProvider is implemented by imgWorkScheduler, so we use our one instance to back the service
-	imgProviderIrpcService := mandel.NewImgProviderIrpcService(imgWorkScheduler)
+	imgProviderIrpcService := api.NewImgProviderIrpcService(imgWorkScheduler)
 
-	// tileProviderIrpcService provides mandel.TileProvider interface over network
+	// tileProviderIrpcService provides api.TileProvider interface over network
 	// It provides many different functions to provide web clients a view of progressive rendering, workers number etc
 	// TileProvider is also iplemented by imgWorkScheduler, so we use the same instance as with imgProvderIrpcSevice
 	// to share computational power among both cli and web clients
-	tileProviderIrpcService := mandel.NewTileProviderIrpcService(imgWorkScheduler)
+	tileProviderIrpcService := api.NewTileProviderIrpcService(imgWorkScheduler)
 
 	// irpc server with onConnect hook to plug clients into rendering
 	irpcServer := irpc.NewServer(irpc.WithOnConnect(func(ep *irpc.Endpoint) {
 		go func() {
 			log.Printf("got connection from: %s", ep.RemoteAddr())
 
-			// Each client needs to provide us with mandel.Renderer so we can use it to render tiles of full image
-			rendererIrpcClient, err := mandel.NewRendererIrpcClient(ep)
+			// Each client needs to provide us with api.Renderer so we can use it to render tiles of full image
+			rendererIrpcClient, err := api.NewRendererIrpcClient(ep)
 			if err != nil {
 				log.Printf("err: new Rendering client: %v", err)
 				return

@@ -12,7 +12,7 @@ import (
 	"os"
 
 	"github.com/marben/irpc"
-	mandel "github.com/marben/irpc_dist_mandel"
+	api "github.com/marben/irpc_dist_mandel"
 	"github.com/marben/irpc_dist_mandel/render"
 )
 
@@ -38,12 +38,12 @@ func run() error {
 
 	// Step 2: Create the renderer service, which the server can call to render tiles using our CPU
 	renderer := render.RendererImpl{OnTileRender: func(tile image.Rectangle) { log.Printf("Rendering tile: %s", tile) }}
-	rendererService := mandel.NewRendererIrpcService(renderer)
+	rendererService := api.NewRendererIrpcService(renderer)
 	ep := irpc.NewEndpoint(tcpConn, irpc.WithEndpointServices(rendererService))
 
 	// Step 3: Create a client for the ImgProvider interface
 	log.Printf("Creating ImgProvider client...")
-	client, err := mandel.NewImgProviderIrpcClient(ep)
+	client, err := api.NewImgProviderIrpcClient(ep)
 	if err != nil {
 		return fmt.Errorf("failed to create ImgProvider client: %w", err)
 	}

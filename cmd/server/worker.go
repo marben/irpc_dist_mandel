@@ -8,14 +8,14 @@ import (
 	"maps"
 	"sync"
 
-	mandel "github.com/marben/irpc_dist_mandel"
+	api "github.com/marben/irpc_dist_mandel"
 )
 
 type imgWorkScheduler struct {
 	workers    int
-	mRegion    mandel.Region
+	mRegion    api.MandelRegion
 	img        *image.RGBA
-	totalTiles int
+	tilesCount int
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
@@ -29,7 +29,7 @@ type imgWorkScheduler struct {
 	m              sync.Mutex
 }
 
-func newImgWorkScheduler(w, h int, region mandel.Region) *imgWorkScheduler {
+func newImgWorkScheduler(w, h int, region api.MandelRegion) *imgWorkScheduler {
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	allTilesSlice := splitRectNoClip(img.Bounds(), 64, 64)
 	allTiles := make(map[image.Rectangle]struct{}, len(allTilesSlice))
@@ -41,7 +41,7 @@ func newImgWorkScheduler(w, h int, region mandel.Region) *imgWorkScheduler {
 		img:            img,
 		mRegion:        region,
 		unstartedTiles: allTiles,
-		totalTiles:     len(allTiles),
+		tilesCount:     len(allTiles),
 		inProcessTiles: make(map[image.Rectangle]struct{}),
 		finishedTiles:  make(map[image.Rectangle]struct{}, len(allTiles)),
 		totalPixels:    w * h,
@@ -50,8 +50,9 @@ func newImgWorkScheduler(w, h int, region mandel.Region) *imgWorkScheduler {
 	}
 }
 
-// FinishedTiles implements mandel.TileProvider.
-// is called by web client to figure out which tiles to download as image and display
+// FinishedTiles implements api.TileProvider
+// returns rectangles of tiles that are already rendered
+// (called by web client to figure out which tiles to download as image and display)
 func (iws *imgWorkScheduler) FinishedTiles() (map[image.Rectangle]struct{}, error) {
 	iws.m.Lock()
 	defer iws.m.Unlock()
@@ -63,7 +64,7 @@ func (iws *imgWorkScheduler) FinishedTiles() (map[image.Rectangle]struct{}, erro
 	return rtnMap, nil
 }
 
-// FullImageDimensions implements mandel.TileProvider.
+// FullImageDimensions implements api.TileProvider
 func (iws *imgWorkScheduler) FullImageDimensions() (width int, height int, err error) {
 	iws.m.Lock()
 	defer iws.m.Unlock()
@@ -71,7 +72,9 @@ func (iws *imgWorkScheduler) FullImageDimensions() (width int, height int, err e
 	return iws.img.Rect.Dx(), iws.img.Rect.Dy(), nil
 }
 
-// GetTileImg implements mandel.TileProvider.
+// GetTileImg implements api.TileProvider
+// returns image of tileRect tile. returned image has same bounds as tileRect parameter,
+// so it can be directly copied onto the full image
 func (iws *imgWorkScheduler) GetTileImg(tileRect image.Rectangle) (*image.RGBA, error) {
 	iws.m.Lock()
 	defer iws.m.Unlock()
@@ -91,13 +94,13 @@ func (iws *imgWorkScheduler) GetTileImg(tileRect image.Rectangle) (*image.RGBA, 
 	return tileImg, nil
 }
 
-// TotalTilesNumber implements mandel.TileProvider.
-func (iws *imgWorkScheduler) TotalTilesNumber() (int, error) {
-	return iws.totalTiles, nil
+// TotalTilesCount implements [api.TileProvider].
+func (iws *imgWorkScheduler) TotalTilesCount() (int, error) {
+	return iws.tilesCount, nil
 }
 
-// Workers implements mandel.TileProvider.
-func (iws *imgWorkScheduler) Workers() (int, error) {
+// WorkersCount implements [api.TileProvider].
+func (iws *imgWorkScheduler) WorkersCount() (int, error) {
 	iws.m.Lock()
 	defer iws.m.Unlock()
 
@@ -132,7 +135,7 @@ func (iws *imgWorkScheduler) popTile() (tile image.Rectangle, found bool) {
 	return image.Rectangle{}, false
 }
 
-// GetImage implements mandel.Server.
+// GetImage implements api.ImgProvider
 func (iws *imgWorkScheduler) GetImage() (*image.RGBA, error) {
 	<-iws.ctx.Done()
 	return iws.img, nil
@@ -193,7 +196,7 @@ func (iws *imgWorkScheduler) decActiveWorkers() {
 
 // renders unfinished tiles on provided Renderer
 // can be called from multiple goroutines in parallel
-func (iws *imgWorkScheduler) addRenderer(renderer mandel.Renderer) error {
+func (iws *imgWorkScheduler) addRenderer(renderer api.Renderer) error {
 	iws.incActiveWorkers()
 	defer iws.decActiveWorkers()
 
@@ -202,7 +205,7 @@ func (iws *imgWorkScheduler) addRenderer(renderer mandel.Renderer) error {
 		if !found {
 			break
 		}
-		tileImg, err := renderer.RenderTile(iws.mRegion, tile, 1920, 1080)
+		tileImg, err := renderer.RenderTile(iws.mRegion, 1920, 1080, tile)
 		if err != nil {
 			log.Printf("render of tile %s failed: %v", tile, err)
 			return nil

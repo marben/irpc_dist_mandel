@@ -14,8 +14,9 @@ import (
 // Fills the canvas with the specified color.
 //
 // Parameters:
-//   width, height: dimensions of the canvas in pixels
-//   color: CSS color string (e.g., "#000", "red")
+//
+//	width, height: dimensions of the canvas in pixels
+//	color: CSS color string (e.g., "#000", "red")
 //
 // Note: Assumes the canvas element exists in the DOM. No error is thrown if not found.
 func initCanvas(width, height int, color string) {
@@ -34,7 +35,8 @@ func initCanvas(width, height int, color string) {
 // The tile's Rect field determines its position on the canvas.
 //
 // Parameters:
-//   tile: pointer to image.RGBA; tile.Rect must be set to the intended canvas region
+//
+//	tile: pointer to image.RGBA; tile.Rect must be set to the intended canvas region
 //
 // Note: Intended for use in browser/WASM context. Assumes the canvas element exists in the DOM.
 func drawTileToCanvas(tile *image.RGBA) {

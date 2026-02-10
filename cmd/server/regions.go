@@ -1,16 +1,12 @@
-package mandel
+package main
 
-// Region within the Mandelbrot set
-type Region struct {
-	Xmin, Xmax float64
-	Ymin, Ymax float64
-}
+import api "github.com/marben/irpc_dist_mandel"
 
 // Classic regions / landmarks in the Mandelbrot set
-// You can replace them in the cmd/server/server.go file to render different parts of mandelbrot set
+// You can replace them in the server.go file to render different parts of mandelbrot set
 var (
 	// Seahorse Valley – dense filaments and repeating “seahorse” curls
-	SeahorseValley = Region{
+	SeahorseValley = api.MandelRegion{
 		Xmin: -0.8,
 		Xmax: -0.7,
 		Ymin: 0.05,
@@ -18,7 +14,7 @@ var (
 	}
 
 	// Elephant Valley – large bulb with trunk-like tendrils
-	ElephantValley = Region{
+	ElephantValley = api.MandelRegion{
 		Xmin: -1.85,
 		Xmax: -1.75,
 		Ymin: -0.10,
@@ -26,7 +22,7 @@ var (
 	}
 
 	// Spiral Minibrot – small Mandelbrot copy with tight spiral arms
-	SpiralMinibrot = Region{
+	SpiralMinibrot = api.MandelRegion{
 		Xmin: -0.7435,
 		Xmax: -0.7420,
 		Ymin: 0.1310,
@@ -34,7 +30,7 @@ var (
 	}
 
 	// Triple Spiral – threefold symmetric spiral structure
-	TripleSpiral = Region{
+	TripleSpiral = api.MandelRegion{
 		Xmin: -0.7480,
 		Xmax: -0.7450,
 		Ymin: 0.0950,
@@ -42,7 +38,7 @@ var (
 	}
 
 	// Valley of the Dragon – deep, highly detailed spiral filaments
-	ValleyOfTheDragon = Region{
+	ValleyOfTheDragon = api.MandelRegion{
 		Xmin: -0.7400,
 		Xmax: -0.7350,
 		Ymin: 0.1800,
@@ -50,15 +46,10 @@ var (
 	}
 
 	// Minibrot in a Mini-Spiral – self-similar Mandelbrot copy inside a spiral arm
-	MinibrotInMiniSpiral = Region{
+	MinibrotInMiniSpiral = api.MandelRegion{
 		Xmin: -1.7390,
 		Xmax: -1.7375,
 		Ymin: -0.0235,
 		Ymax: -0.0220,
 	}
 )
-
-// type Tile struct {
-// 	X0, Y0 int // top-left pixel in global image
-// 	W, H   int // tile width & height
-// }
