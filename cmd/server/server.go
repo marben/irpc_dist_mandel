@@ -58,14 +58,15 @@ func run() error {
 	irpcServer.AddService(imgProviderIrpcService, tileProviderIrpcService)
 
 	// TCP
-	log.Println("tcp listening on port: 8081")
 	tcpListener, err := net.Listen("tcp", ":8081")
 	if err != nil {
 		return fmt.Errorf("net.Listen: %w", err)
 	}
+	log.Println("tcp listening on port: 8081")
 
 	// WEBSOCKET
 	websocketListener, httpServer := webServer(context.Background(), 8080)
+	log.Printf("http listening on http://localhost:%d", 8080)
 
 	// httpServer provides index.html, main.wasm along with websocket endpoint
 	go func() {

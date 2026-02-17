@@ -25,7 +25,6 @@ func webServer(ctx context.Context, port int) (net.Listener, *http.Server) {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	log.Printf("listening on http://localhost:%d", port)
 	return l, srv
 }
 

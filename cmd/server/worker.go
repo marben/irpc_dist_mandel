@@ -15,10 +15,11 @@ import (
 // imgWorkScheduler implements api.ImgProvider and api.TileProvider
 // it uses provided api.Renderer to do rendering
 type imgWorkScheduler struct {
-	workers    int
-	mRegion    api.MandelRegion
-	img        *image.RGBA
-	tilesCount int
+	mRegion api.MandelRegion
+	img     *image.RGBA // the "global" picture
+
+	tilesCount   int
+	workersCount int // current workers count
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
@@ -69,9 +70,6 @@ func (iws *imgWorkScheduler) FinishedTiles() (map[image.Rectangle]struct{}, erro
 
 // FullImageDimensions implements api.TileProvider
 func (iws *imgWorkScheduler) FullImageDimensions() (width int, height int, err error) {
-	iws.m.Lock()
-	defer iws.m.Unlock()
-
 	return iws.img.Rect.Dx(), iws.img.Rect.Dy(), nil
 }
 
@@ -107,7 +105,7 @@ func (iws *imgWorkScheduler) WorkersCount() (int, error) {
 	iws.m.Lock()
 	defer iws.m.Unlock()
 
-	return iws.workers, nil
+	return iws.workersCount, nil
 }
 
 // addRenderer renders unfinished tiles using renderer
@@ -126,7 +124,8 @@ func (iws *imgWorkScheduler) addRenderer(renderer api.Renderer) error {
 			log.Printf("render of tile %s failed: %v", tile, err)
 			return nil
 		}
-		iws.tileFinished(tileImg)
+		iws.mergeTile(tileImg)
+		log.Printf("rendered: %.2f%%", iws.finished()*100)
 	}
 	return nil
 }
@@ -160,32 +159,33 @@ func (iws *imgWorkScheduler) popTile() (tile image.Rectangle, found bool) {
 }
 
 // GetImage implements api.ImgProvider
+// blocks until the picture is fully rendered
 func (iws *imgWorkScheduler) GetImage() (*image.RGBA, error) {
-	<-iws.ctx.Done()
+	<-iws.ctx.Done() // wait for render to finish
 	return iws.img, nil
 }
 
-// tileFinished draws the provided tileImg onto final image
+// mergeTile draws the provided tileImg onto final image
 // and marks that tile as finished
-func (iws *imgWorkScheduler) tileFinished(tileImg *image.RGBA) {
-	defer log.Printf("finished: %.2f%%", iws.finished()*100)
-
-	rect := tileImg.Bounds()
+func (iws *imgWorkScheduler) mergeTile(tileImg *image.RGBA) {
+	// tileImg tile contains global coordinates
+	// so we use them directly to write to the big picture
+	dstRect := tileImg.Bounds()
 
 	iws.m.Lock()
 	defer iws.m.Unlock()
 
 	draw.Draw(
 		iws.img,
-		tileImg.Bounds(),     // destination rectangle (global coords)
+		dstRect,              // destination rectangle
 		tileImg,              // source image
 		tileImg.Bounds().Min, // source start
 		draw.Src,
 	)
 
-	_, found := iws.inProcessTiles[rect]
+	_, found := iws.inProcessTiles[dstRect]
 	if found {
-		iws.finishedPixels += rect.Dx() * rect.Dy()
+		iws.finishedPixels += dstRect.Dx() * dstRect.Dy()
 	}
 
 	delete(iws.inProcessTiles, tileImg.Rect)
@@ -207,18 +207,18 @@ func (iws *imgWorkScheduler) incActiveWorkers() {
 	iws.m.Lock()
 	defer iws.m.Unlock()
 
-	iws.workers++
+	iws.workersCount++
 
-	log.Printf("workers: %d", iws.workers)
+	log.Printf("workers: %d", iws.workersCount)
 }
 
 func (iws *imgWorkScheduler) decActiveWorkers() {
 	iws.m.Lock()
 	defer iws.m.Unlock()
 
-	iws.workers--
+	iws.workersCount--
 
-	log.Printf("workers: %d", iws.workers)
+	log.Printf("workers: %d", iws.workersCount)
 }
 
 // splitRectNoClip splits r into tiles of size tileW × tileH.
