@@ -11,6 +11,9 @@ import (
 	api "github.com/marben/irpc_dist_mandel"
 )
 
+// imgWorkScheduler manages work on single mandelbrot image rendering
+// imgWorkScheduler implements api.ImgProvider and api.TileProvider
+// it uses provided api.Renderer to do rendering
 type imgWorkScheduler struct {
 	workers    int
 	mRegion    api.MandelRegion
@@ -107,6 +110,27 @@ func (iws *imgWorkScheduler) WorkersCount() (int, error) {
 	return iws.workers, nil
 }
 
+// addRenderer renders unfinished tiles using renderer
+// can be called from multiple goroutines in parallel. renderers will then share the rendering
+func (iws *imgWorkScheduler) addRenderer(renderer api.Renderer) error {
+	iws.incActiveWorkers()
+	defer iws.decActiveWorkers()
+
+	for {
+		tile, found := iws.popTile()
+		if !found {
+			break
+		}
+		tileImg, err := renderer.RenderTile(iws.mRegion, 1920, 1080, tile)
+		if err != nil {
+			log.Printf("render of tile %s failed: %v", tile, err)
+			return nil
+		}
+		iws.tileFinished(tileImg)
+	}
+	return nil
+}
+
 func (iws *imgWorkScheduler) popTile() (tile image.Rectangle, found bool) {
 	iws.m.Lock()
 	defer iws.m.Unlock()
@@ -141,14 +165,10 @@ func (iws *imgWorkScheduler) GetImage() (*image.RGBA, error) {
 	return iws.img, nil
 }
 
-func (iws *imgWorkScheduler) finished() float32 {
-	iws.m.Lock()
-	defer iws.m.Unlock()
-	return float32(iws.finishedPixels) / float32(iws.totalPixels)
-}
-
+// tileFinished draws the provided tileImg onto final image
+// and marks that tile as finished
 func (iws *imgWorkScheduler) tileFinished(tileImg *image.RGBA) {
-	defer log.Printf("finished: %f", iws.finished())
+	defer log.Printf("finished: %.2f%%", iws.finished()*100)
 
 	rect := tileImg.Bounds()
 
@@ -176,6 +196,13 @@ func (iws *imgWorkScheduler) tileFinished(tileImg *image.RGBA) {
 	}
 }
 
+// finished returns fraction of finished tiles
+func (iws *imgWorkScheduler) finished() float32 {
+	iws.m.Lock()
+	defer iws.m.Unlock()
+	return float32(iws.finishedPixels) / float32(iws.totalPixels)
+}
+
 func (iws *imgWorkScheduler) incActiveWorkers() {
 	iws.m.Lock()
 	defer iws.m.Unlock()
@@ -192,28 +219,6 @@ func (iws *imgWorkScheduler) decActiveWorkers() {
 	iws.workers--
 
 	log.Printf("workers: %d", iws.workers)
-}
-
-// renders unfinished tiles on provided Renderer
-// can be called from multiple goroutines in parallel
-func (iws *imgWorkScheduler) addRenderer(renderer api.Renderer) error {
-	iws.incActiveWorkers()
-	defer iws.decActiveWorkers()
-
-	for {
-		tile, found := iws.popTile()
-		if !found {
-			break
-		}
-		tileImg, err := renderer.RenderTile(iws.mRegion, 1920, 1080, tile)
-		if err != nil {
-			log.Printf("render of tile %s failed: %v", tile, err)
-			return nil
-		}
-		// ws.img.DrawTile(tileImg)
-		iws.tileFinished(tileImg)
-	}
-	return nil
 }
 
 // splitRectNoClip splits r into tiles of size tileW × tileH.

@@ -46,7 +46,7 @@ func websocketHandler(l *WebsocketListener) http.HandlerFunc {
 }
 
 // WebsocketListener implements net.Listener
-// it's an addapter used by websocketHandler
+// it's a wrapper around websocket.Conn
 type WebsocketListener struct {
 	ch     chan *websocket.Conn
 	done   chan struct{}
@@ -86,6 +86,7 @@ func (l *WebsocketListener) Close() error {
 	return nil
 }
 
+// wsAddrs implements net.Addr
 type wsAddr struct {
 	addr string
 }

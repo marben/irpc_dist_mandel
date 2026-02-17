@@ -1,6 +1,6 @@
 # Distributed Mandelbrot Renderer Demo
 
-This project demonstrates a distributed Mandelbrot set renderer using Go, WebAssembly (WASM), and [IRPC](https://github.com/marben/irpc). Rendering is performed entirely by clients (web and CLI), while the server coordinates and distributes work.
+This project demonstrates a distributed Mandelbrot set renderer using Go, WebAssembly (WASM), and [iRPC](https://github.com/marben/irpc). Rendering is performed entirely by clients (web and CLI), while the server coordinates and distributes work.
 
 ## Architecture Overview
 
@@ -9,12 +9,12 @@ This project demonstrates a distributed Mandelbrot set renderer using Go, WebAss
 - **CLI Client**: Connects to the server via TCP, renders tiles, and saves the fully rendered image as a PNG file.
 
 ```
-+---------+      IRPC over TCP         +---------+
++---------+      iRPC over TCP         +---------+
 |  CLI    | <------------------------> |         |
 | Client  |                            |         |
 +---------+                            |         |
                                        | Server  |
-+---------+    IRPC over WebSocket     |         |
++---------+    iRPC over WebSocket     |         |
 |  WEB    | <------------------------> |         |
 | Client  |                            |         |
 +---------+                            +---------+
