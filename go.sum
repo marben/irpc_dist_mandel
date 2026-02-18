@@ -2,3 +2,5 @@ github.com/coder/websocket v1.8.14 h1:9L0p0iKiNOibykf283eHkKUHHrpG7f65OE3BhhO7v9
 github.com/coder/websocket v1.8.14/go.mod h1:NX3SzP+inril6yawo5CQXx8+fk145lPDC6pumgx0mVg=
 github.com/marben/irpc v0.0.0-20260109104542-2d3fde99869b h1:RelQcrpUu4i6is1PPWz6AaNxzpp+WdYO4sdsTjWIleo=
 github.com/marben/irpc v0.0.0-20260109104542-2d3fde99869b/go.mod h1:Yzs1ONlt4xfo6jqOARI2gK4YfxLCOIDL7QyQW9dz3/0=
+github.com/marben/irpc v0.0.0-20260218100630-752978450cbb h1:/UVRa/7CCTP0MDeRDuKt0gSSXkZx2f2eXrR0VeIniiU=
+github.com/marben/irpc v0.0.0-20260218100630-752978450cbb/go.mod h1:JCeFQRq91KKQ7yXiO6d149cmS1WDO+fi1/UPEJbXSXc=
