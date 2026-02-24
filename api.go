@@ -12,7 +12,7 @@ import (
 
 // Calling 'go generate api.go' will call 'irpc api.go', regenerating api_irpc.go code.
 // ( $GOFILE represents current file )
-//go:generate irpc $GOFILE
+//go:generate go run github.com/marben/irpc/cmd/irpc@latest $GOFILE
 
 // ImgProvider is implemented by the server and is called by the CLI client to get the full image once rendering is complete.
 type ImgProvider interface {
