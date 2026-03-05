@@ -1,3 +1,5 @@
+//go:build js && wasm
+
 // webclient.go is a WASM web client for the distributed Mandelbrot renderer.
 // It connects to the Mandelbrot server, requests tile updates, and displays rendering progress in the browser.
 

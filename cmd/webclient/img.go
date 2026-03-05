@@ -1,3 +1,5 @@
+//go:build js && wasm
+
 // img.go provides simple functions to initialize and draw on an HTML canvas from Go (WASM) code.
 // Intended for demo purposes: initializes a canvas and draws image tiles using browser APIs.
 //
